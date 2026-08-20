@@ -179,6 +179,20 @@ export async function persistRecomputedSemaforo(squadId: number): Promise<Semafo
   return color;
 }
 
+// Recomputa el color de varios squads (tras crear/editar/resolver un riesgo) y
+// reporta cuáles cambiaron, para que la vista refresque sólo esos sin recargar.
+export async function recomputarSemaforoSquads(
+  squadIds: number[]
+): Promise<{ squadId: number; semaforo: Semaforo | null; changed: boolean }[]> {
+  const resultados = [];
+  for (const squadId of squadIds) {
+    const antes = await ultimoSnapshot(squadId);
+    const semaforo = await persistRecomputedSemaforo(squadId);
+    resultados.push({ squadId, semaforo, changed: (antes?.semaforo ?? null) !== semaforo });
+  }
+  return resultados;
+}
+
 // Las colecciones semanales se acotan a la semana de la fila leída; sin fila, no
 // hay semana y no se traen (se pasa una fecha imposible de matchear).
 function semanaFiltro(semana: string | undefined): Date {
