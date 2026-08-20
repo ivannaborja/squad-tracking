@@ -15,7 +15,8 @@ datasource db {
 
 model Squad {
   id     Int    @id @default(autoincrement())
-  nombre String
+  // Único: el import matchea los squads por nombre, así que no puede haber dos iguales.
+  nombre String @unique
 
   snapshots          SquadSnapshot[]
   initiatives        Initiative[]
