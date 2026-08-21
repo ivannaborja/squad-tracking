@@ -7,16 +7,15 @@ import { C, FONT, deltaColor, fmtPct, fmtPp } from '../../../lib/ds-tokens';
 import { Badge, Card, Kpi, SectionTitle, SemaforoBadge, Mono, stripeColor } from '../../../components/ds';
 import { ExportButton } from '../../../components/ExportButton';
 import { CarteraChart } from '../../../components/CarteraChart';
+import { hoyISO } from '../../../lib/dates';
 
 export const dynamic = 'force-dynamic';
-
-const hoy = () => new Date().toISOString().slice(0, 10);
 
 export default async function Detalle({ params }: { params: Promise<{ squadId: string }> }) {
   const squadId = Number((await params).squadId);
   if (!Number.isInteger(squadId)) notFound();
 
-  const date = hoy();
+  const date = hoyISO();
   const view = await getSquadReportView(squadId, date);
   if (!view) notFound();
 

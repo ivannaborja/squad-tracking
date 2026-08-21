@@ -3,14 +3,13 @@ import { getOverview } from '../services/report/reportService';
 import { C, FONT, deltaColor, fmtPct, fmtPp } from '../lib/ds-tokens';
 import { Card, Kpi, ProgressBar, SemaforoBadge, Mono, stripeColor } from '../components/ds';
 import { ExportButton } from '../components/ExportButton';
+import { hoyISO } from '../lib/dates';
 
 // Lee la base en cada request y usa la fecha de hoy: nunca se prerenderiza.
 export const dynamic = 'force-dynamic';
 
-const hoy = () => new Date().toISOString().slice(0, 10);
-
 export default async function Comparativo() {
-  const date = hoy();
+  const date = hoyISO();
   const squads = await getOverview(date);
 
   const cuenta = (s: string) => squads.filter((x) => x.semaforo === s).length;
