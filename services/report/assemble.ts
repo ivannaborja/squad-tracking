@@ -68,8 +68,9 @@ export function assembleSquadReportView(input: {
   date: string;
   trimestre: Trimestre; // el Q de la fila (o el del calendario si no hay fila)
   collections: Collections;
-  // Los intakes de TODO el trimestre: alimentan el KPI acumulado, que es distinto
-  // de collections.unplannedIntake (esos son sólo los de la semana, para la sección).
+  // Los intakes de portafolio del trimestre (todas las squads): alimentan el KPI
+  // acumulado, distinto de collections.unplannedIntake (los de la semana de esta
+  // squad, para la sección del pre-informe).
   unplannedTrimestre: UnplannedIntakeItem[];
   actionPlans: ActionPlanItem[];
 }): SquadReportView {

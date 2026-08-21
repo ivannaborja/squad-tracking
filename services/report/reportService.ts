@@ -73,9 +73,12 @@ export async function getSquadReportView(
     prisma.initiative.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
     // Semanal: la sección "ingresos no planificados" del pre-informe es de la semana.
     prisma.unplannedIntake.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
-    // Trimestral: el KPI "no planificadas" es el acumulado del Q (SDD), no de la semana.
+    // KPI "no planificadas": acumulado de PORTAFOLIO del Q (SDD literal:
+    // COUNT(UnplannedIntake) GROUP BY trimestre, sin squad). Cuenta los intakes de
+    // TODAS las squads del Q vigente — distinto de la sección semanal de arriba,
+    // que sí es de esta squad.
     prisma.unplannedIntake.findMany({
-      where: { squadId, semanaInicio: { gte: new Date(tri.inicio), lte: new Date(tri.fin) } },
+      where: { semanaInicio: { gte: new Date(tri.inicio), lte: new Date(tri.fin) } },
     }),
     // Sólo los planes en curso, no el historial ya resuelto.
     prisma.actionPlan.findMany({ where: { resuelto: false } }),
