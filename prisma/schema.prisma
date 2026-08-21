@@ -10,4 +10,172 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  // La URL vive en prisma.config.ts (Prisma 7 ya no la acepta acá).
+}
+
+model Squad {
+  id     Int    @id @default(autoincrement())
+  nombre String
+
+  snapshots          SquadSnapshot[]
+  initiatives        Initiative[]
+  risks              RiskSquad[]
+  needs              Need[]
+  upcomingDeliveries UpcomingDelivery[]
+  achievements       Achievement[]
+  unplannedIntakes   UnplannedIntake[]
+
+  @@map("squad")
+}
+
+model SquadSnapshot {
+  id                      Int      @id @default(autoincrement())
+  squadId                 Int      @map("squad_id")
+  semanaInicio            DateTime @map("semana_inicio") @db.Date
+  fechaReferencia         DateTime @map("fecha_referencia") @db.Date
+  trimestre               String
+  deliveryRealPct         Float    @map("delivery_real_pct")
+  discoveryRealPct        Float    @map("discovery_real_pct")
+  deliveryManualOverride  Boolean  @default(false) @map("delivery_manual_override")
+  discoveryManualOverride Boolean  @default(false) @map("discovery_manual_override")
+  esperadoPct             Float    @map("esperado_pct")
+  deliveryDeltaPct        Float    @map("delivery_delta_pct")
+  discoveryDeltaPct       Float    @map("discovery_delta_pct")
+  semaforo                String
+  frasePronostico         String?  @map("frase_pronostico")
+  editadoPor              String   @map("editado_por")
+
+  squad Squad @relation(fields: [squadId], references: [id])
+
+  // Una sola fila por squad por semana: dentro de la semana se actualiza en el
+  // lugar, entre semanas nunca se pisa (SDD, historial completo).
+  @@unique([squadId, semanaInicio])
+  @@map("squad_snapshot")
+}
+
+model Initiative {
+  id            Int      @id @default(autoincrement())
+  squadId       Int      @map("squad_id")
+  codigoExterno String?  @map("codigo_externo")
+  nombre        String
+  tipo          String
+  estado        String
+  pctAvance     Float    @map("pct_avance")
+  fechaInicio   DateTime @map("fecha_inicio") @db.Date
+  fechaFin      DateTime @map("fecha_fin") @db.Date
+  semanaInicio  DateTime @map("semana_inicio") @db.Date
+
+  squad Squad @relation(fields: [squadId], references: [id])
+
+  // Clave natural del upsert del import. codigo_externo es nullable: en Postgres
+  // los NULL no colisionan, así una fila sin código se inserta nueva cada import
+  // (limitación conocida del SDD), y una con código matchea la de semanas previas.
+  @@unique([squadId, codigoExterno])
+  @@map("initiative")
+}
+
+model Risk {
+  id               Int      @id @default(autoincrement())
+  descripcion      String
+  // Categórico y extensible a propósito (no un booleano impacta_ingresos): sumar
+  // categorías después no obliga a migrar ni reclasificar filas viejas (SDD / PRD #7).
+  categoriaImpacto String   @map("categoria_impacto")
+  severidad        String
+  dueno            String
+  accionProxima    String   @map("accion_proxima")
+  checkpoint       String
+  tipo             String
+  semanaInicio     DateTime @map("semana_inicio") @db.Date
+  semanaFin        DateTime @map("semana_fin") @db.Date
+  resuelto         Boolean  @default(false)
+
+  squads RiskSquad[]
+
+  @@map("risk")
+}
+
+// Un mismo riesgo puede pegarle a varios squads a la vez sin duplicar la fila.
+model RiskSquad {
+  riskId  Int @map("risk_id")
+  squadId Int @map("squad_id")
+
+  risk  Risk  @relation(fields: [riskId], references: [id])
+  squad Squad @relation(fields: [squadId], references: [id])
+
+  @@id([riskId, squadId])
+  @@map("risk_squad")
+}
+
+model Need {
+  id           Int      @id @default(autoincrement())
+  squadId      Int      @map("squad_id")
+  descripcion  String
+  dueno        String
+  semanaInicio DateTime @map("semana_inicio") @db.Date
+  resuelto     Boolean  @default(false)
+
+  squad Squad @relation(fields: [squadId], references: [id])
+
+  @@map("need")
+}
+
+model UpcomingDelivery {
+  id            Int      @id @default(autoincrement())
+  squadId       Int      @map("squad_id")
+  descripcion   String
+  fechaEstimada DateTime @map("fecha_estimada") @db.Date
+  semanaInicio  DateTime @map("semana_inicio") @db.Date
+
+  squad Squad @relation(fields: [squadId], references: [id])
+
+  @@map("upcoming_delivery")
+}
+
+model Achievement {
+  id           Int      @id @default(autoincrement())
+  squadId      Int      @map("squad_id")
+  descripcion  String
+  semanaInicio DateTime @map("semana_inicio") @db.Date
+
+  squad Squad @relation(fields: [squadId], references: [id])
+
+  @@map("achievement")
+}
+
+// Intake, NO plata: iniciativas que entraron al portafolio sin planificar.
+// Distinto de Risk.categoria_impacto='ingresos' (revenue). Ver SDD "Ojo con ingresos".
+model UnplannedIntake {
+  id           Int      @id @default(autoincrement())
+  squadId      Int      @map("squad_id")
+  descripcion  String
+  semanaInicio DateTime @map("semana_inicio") @db.Date
+
+  squad Squad @relation(fields: [squadId], references: [id])
+
+  @@map("unplanned_intake")
+}
+
+// Staging del import de dos fases. Vive en Postgres, no en memoria de proceso:
+// en Vercel serverless el POST /api/import y el confirm posterior pueden caer en
+// instancias distintas, así que la memoria no alcanza para retener el batch.
+model ImportStaging {
+  token     String   @id
+  payload   Json
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("import_staging")
+}
+
+// De portafolio, no de squad: sin squad_id (fuente real pág. 3).
+model ActionPlan {
+  id           Int      @id @default(autoincrement())
+  descripcion  String
+  dueno        String
+  plazo        String
+  estado       String
+  semanaInicio DateTime @map("semana_inicio") @db.Date
+  resuelto     Boolean  @default(false)
+
+  @@map("action_plan")
 }
