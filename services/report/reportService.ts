@@ -180,15 +180,19 @@ export async function persistRecomputedSemaforo(squadId: number): Promise<Semafo
 }
 
 // Recomputa el color de varios squads (tras crear/editar/resolver un riesgo) y
-// reporta cuáles cambiaron, para que la vista refresque sólo esos sin recargar.
+// devuelve SÓLO los que efectivamente cambiaron, para que la vista refresque
+// esos sin recargar. El contrato (SDD) es "la lista de squads cuyo semáforo
+// cambió": filtramos acá para no depender de que el frontend descarte los demás.
 export async function recomputarSemaforoSquads(
   squadIds: number[]
-): Promise<{ squadId: number; semaforo: Semaforo | null; changed: boolean }[]> {
+): Promise<{ squadId: number; semaforo: Semaforo | null }[]> {
   const resultados = [];
   for (const squadId of squadIds) {
     const antes = await ultimoSnapshot(squadId);
     const semaforo = await persistRecomputedSemaforo(squadId);
-    resultados.push({ squadId, semaforo, changed: (antes?.semaforo ?? null) !== semaforo });
+    if ((antes?.semaforo ?? null) !== semaforo) {
+      resultados.push({ squadId, semaforo });
+    }
   }
   return resultados;
 }

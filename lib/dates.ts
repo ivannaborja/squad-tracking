@@ -8,6 +8,10 @@ export function inicioDeSemana(fecha: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+// El día "de hoy" en hora de Paraguay, no en UTC: un check-in cargado de noche
+// (p. ej. 23:30 Asunción) ya cruzó la medianoche UTC y toISOString() lo fecharía
+// al día siguiente, corriendo fecha_referencia/semana_inicio/trimestre cerca de
+// un borde. Usamos la zona IANA, que ajusta sola el DST (Paraguay cambió reglas).
 export function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Asuncion' }).format(new Date());
 }
