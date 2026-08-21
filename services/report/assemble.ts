@@ -68,9 +68,13 @@ export function assembleSquadReportView(input: {
   date: string;
   trimestre: Trimestre; // el Q de la fila (o el del calendario si no hay fila)
   collections: Collections;
+  // Los intakes de TODO el trimestre: alimentan el KPI acumulado, que es distinto
+  // de collections.unplannedIntake (esos son sólo los de la semana, para la sección).
+  unplannedTrimestre: UnplannedIntakeItem[];
   actionPlans: ActionPlanItem[];
 }): SquadReportView {
-  const { squadId, squadNombre, snapshot, date, trimestre, collections, actionPlans } = input;
+  const { squadId, squadNombre, snapshot, date, trimestre, collections, unplannedTrimestre, actionPlans } =
+    input;
 
   const snapshotView: SnapshotView = snapshot
     ? {
@@ -114,7 +118,7 @@ export function assembleSquadReportView(input: {
       collections.needs,
       snapshotView.semanaInicio
     ),
-    kpiNoPlanificadas: kpiNoPlanificadas(collections.unplannedIntake),
+    kpiNoPlanificadas: kpiNoPlanificadas(unplannedTrimestre),
     collections,
     actionPlans,
   };

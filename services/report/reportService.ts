@@ -54,17 +54,32 @@ export async function getSquadReportView(
   const row = await ultimoSnapshot(squadId);
   const snapshot = row ? normalizar(row) : null;
   const semana = snapshot?.semanaInicio;
+  const tri = trimestreVigente(snapshot, date);
 
-  const [risks, needs, achievements, upcomingDeliveries, initiatives, unplannedIntake, actionPlans] =
-    await Promise.all([
-      prisma.risk.findMany({ where: { squads: { some: { squadId } } } }),
-      prisma.need.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
-      prisma.achievement.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
-      prisma.upcomingDelivery.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
-      prisma.initiative.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
-      prisma.unplannedIntake.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
-      prisma.actionPlan.findMany(),
-    ]);
+  const [
+    risks,
+    needs,
+    achievements,
+    upcomingDeliveries,
+    initiatives,
+    unplannedIntake,
+    unplannedTrimestre,
+    actionPlans,
+  ] = await Promise.all([
+    prisma.risk.findMany({ where: { squads: { some: { squadId } } } }),
+    prisma.need.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
+    prisma.achievement.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
+    prisma.upcomingDelivery.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
+    prisma.initiative.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
+    // Semanal: la sección "ingresos no planificados" del pre-informe es de la semana.
+    prisma.unplannedIntake.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
+    // Trimestral: el KPI "no planificadas" es el acumulado del Q (SDD), no de la semana.
+    prisma.unplannedIntake.findMany({
+      where: { squadId, semanaInicio: { gte: new Date(tri.inicio), lte: new Date(tri.fin) } },
+    }),
+    // Sólo los planes en curso, no el historial ya resuelto.
+    prisma.actionPlan.findMany({ where: { resuelto: false } }),
+  ]);
 
   const collections: Collections = {
     risks: risks.map((r) => ({
@@ -115,8 +130,12 @@ export async function getSquadReportView(
     squadNombre: squad.nombre,
     snapshot,
     date,
-    trimestre: trimestreVigente(snapshot, date),
+    trimestre: tri,
     collections,
+    unplannedTrimestre: unplannedTrimestre.map((u) => ({
+      descripcion: u.descripcion,
+      semanaInicio: iso(u.semanaInicio),
+    })),
     actionPlans: actionPlans.map((p) => ({
       descripcion: p.descripcion,
       dueno: p.dueno,

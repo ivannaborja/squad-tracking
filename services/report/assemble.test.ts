@@ -123,6 +123,7 @@ describe('assembleSquadReportView', () => {
       date: '2026-08-14',
       trimestre: Q3,
       collections: vacias,
+      unplannedTrimestre: [],
       actionPlans: [],
     });
     expect(v.snapshot.semaforo).toBe('verde');
@@ -138,12 +139,38 @@ describe('assembleSquadReportView', () => {
       date: '2026-08-14',
       trimestre: Q3,
       collections: vacias,
+      unplannedTrimestre: [],
       actionPlans: [],
     });
     expect(v.snapshot.semaforo).toBeNull();
     expect(v.datosDe).toBeNull();
     expect(v.aHoy.esperadoPct).toBeGreaterThan(0);
     expect(v.avisoRojoSinNeed).toBe(false);
+  });
+
+  it('el KPI no planificadas cuenta el trimestre, no la semana', () => {
+    // La sección muestra la semana (1 intake); el KPI acumula el Q (3 intakes).
+    const semanal = {
+      ...vacias,
+      unplannedIntake: [{ descripcion: 'de la semana', semanaInicio: '2026-08-11' }],
+    };
+    const trimestral = [
+      { descripcion: 'a', semanaInicio: '2026-07-07' },
+      { descripcion: 'b', semanaInicio: '2026-07-28' },
+      { descripcion: 'c', semanaInicio: '2026-08-11' },
+    ];
+    const v = assembleSquadReportView({
+      squadId: 5,
+      squadNombre: 'Adquirencia',
+      snapshot: snapshotBase,
+      date: '2026-08-14',
+      trimestre: Q3,
+      collections: semanal,
+      unplannedTrimestre: trimestral,
+      actionPlans: [],
+    });
+    expect(v.kpiNoPlanificadas).toBe(3);
+    expect(v.collections.unplannedIntake).toHaveLength(1);
   });
 });
 
