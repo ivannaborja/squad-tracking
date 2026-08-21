@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export function middleware(request: NextRequest) {
+// Basic Auth casero en el edge: el piso de acceso del ARD. Convierte "cualquiera
+// con el link" en "cualquiera con el link y la credencial". Antes vivía en
+// middleware.ts; Next 16 renombró la convención a proxy (misma funcionalidad).
+export function proxy(request: NextRequest) {
   const authHeader = request.headers.get('authorization');
 
   if (authHeader) {
