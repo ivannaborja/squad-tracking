@@ -16,4 +16,8 @@ jobs:
           node-version: 24.19.0
           cache: npm
       - run: npm ci
+      # El cliente de Prisma es código generado, no versionado: sin esto los tests
+      # no encuentran ../app/generated/prisma/client. El build de Vercel lo cubre
+      # con "prisma generate && next build", pero este job nunca corre el build.
+      - run: npx prisma generate
       - run: npm test
