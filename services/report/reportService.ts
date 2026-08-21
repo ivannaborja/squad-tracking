@@ -201,6 +201,24 @@ export async function persistRecomputedSemaforo(squadId: number): Promise<Semafo
   return color;
 }
 
+// Recomputa el color de varios squads (tras crear/editar/resolver un riesgo) y
+// devuelve SÓLO los que efectivamente cambiaron, para que la vista refresque
+// esos sin recargar. El contrato (SDD) es "la lista de squads cuyo semáforo
+// cambió": filtramos acá para no depender de que el frontend descarte los demás.
+export async function recomputarSemaforoSquads(
+  squadIds: number[]
+): Promise<{ squadId: number; semaforo: Semaforo | null }[]> {
+  const resultados = [];
+  for (const squadId of squadIds) {
+    const antes = await ultimoSnapshot(squadId);
+    const semaforo = await persistRecomputedSemaforo(squadId);
+    if ((antes?.semaforo ?? null) !== semaforo) {
+      resultados.push({ squadId, semaforo });
+    }
+  }
+  return resultados;
+}
+
 // Las colecciones semanales se acotan a la semana de la fila leída; sin fila, no
 // hay semana y no se traen (se pasa una fecha imposible de matchear).
 function semanaFiltro(semana: string | undefined): Date {
