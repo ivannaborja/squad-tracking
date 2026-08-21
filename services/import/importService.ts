@@ -21,6 +21,15 @@ interface StagingPayload {
   snapshots: SquadSnapshot[];
   initiatives: ParsedInitiative[];
   period: Period;
+  // Los conflictos detectados en fase 1: la fase 2 los necesita para reportar el
+  // estado de cada decisión (decisions_applied), incluidos los omitidos.
+  conflicts: Conflicto[];
+}
+
+export interface DecisionAplicada {
+  squad_id: number;
+  field: 'delivery_real_pct' | 'discovery_real_pct';
+  applied: boolean;
 }
 
 type ResultadoImport =
@@ -73,7 +82,7 @@ export async function procesarImport(csv: string, editadoPor: string): Promise<R
   }
 
   if (conflicts.length === 0) {
-    const summary = await aplicar(snapshots, initiatives, period, new Map(), editadoPor);
+    const { summary } = await aplicar(snapshots, initiatives, period, new Map(), editadoPor);
     return { status: 'applied', summary };
   }
 
@@ -82,7 +91,7 @@ export async function procesarImport(csv: string, editadoPor: string): Promise<R
   // la decisión por campo.
   const token = `imp_${crypto.randomUUID().slice(0, 8)}`;
   const expiresAt = new Date(Date.now() + TTL_MS);
-  const payload: StagingPayload = { snapshots, initiatives, period };
+  const payload: StagingPayload = { snapshots, initiatives, period, conflicts };
   await prisma.importStaging.create({
     data: { token, payload: payload as unknown as object, expiresAt },
   });
@@ -102,7 +111,11 @@ export async function procesarImport(csv: string, editadoPor: string): Promise<R
 type ResultadoConfirm =
   | { status: 'token_not_found' }
   | { status: 'token_expired' }
-  | { status: 'confirmed'; summary: { squads_updated: number; initiatives_upserted: number } };
+  | {
+      status: 'confirmed';
+      summary: { squads_updated: number; initiatives_upserted: number };
+      decisions_applied: DecisionAplicada[];
+    };
 
 export async function confirmarImport(
   token: string,
@@ -116,12 +129,30 @@ export async function confirmarImport(
     return { status: 'token_expired' };
   }
 
-  const { snapshots, initiatives, period } = staging.payload as unknown as StagingPayload;
+  const { snapshots, initiatives, period, conflicts } = staging.payload as unknown as StagingPayload;
   const mapa = new Map(decisions.map((d) => [claveDecision(d.squad_id, d.field), d.accept]));
 
-  const summary = await aplicar(snapshots, initiatives, period, mapa, editadoPor);
+  const { summary, resoluciones } = await aplicar(snapshots, initiatives, period, mapa, editadoPor);
   await prisma.importStaging.delete({ where: { token } });
-  return { status: 'confirmed', summary };
+  return {
+    status: 'confirmed',
+    summary,
+    decisions_applied: decisionesAplicadas(conflicts ?? [], resoluciones),
+  };
+}
+
+// El estado de cada decisión de fase 2: por cada conflicto original (incluidos
+// los omitidos, que cuentan como rechazo), applied = true sólo si terminó
+// escribiéndose el valor del CSV (el override quedó liberado en false).
+export function decisionesAplicadas(
+  conflicts: Conflicto[],
+  resoluciones: Map<string, boolean>
+): DecisionAplicada[] {
+  return conflicts.map((c) => ({
+    squad_id: c.squad_id,
+    field: c.field,
+    applied: resoluciones.get(claveDecision(c.squad_id, c.field)) === false,
+  }));
 }
 
 export async function descartarImport(token: string): Promise<boolean> {
@@ -139,12 +170,18 @@ async function aplicar(
   period: Period,
   decisiones: Map<string, boolean>,
   editadoPor: string
-): Promise<{ squads_updated: number; initiatives_upserted: number }> {
+): Promise<{
+  summary: { squads_updated: number; initiatives_upserted: number };
+  // clave(squadId:field) → override final, sólo para los campos que estaban en
+  // conflicto. Es lo que confirmarImport usa para armar decisions_applied.
+  resoluciones: Map<string, boolean>;
+}> {
   const esperado = esperadoPct(period.fechaReferencia, {
     inicio: period.trimestre.inicio,
     fin: period.trimestre.fin,
   });
 
+  const resoluciones = new Map<string, boolean>();
   for (const s of snapshots) {
     const actual = await estadoActual(s.squadId, period.semanaInicio);
 
@@ -164,6 +201,13 @@ async function aplicar(
       actual?.discoveryManualOverride ?? false,
       decisiones
     );
+
+    if (delivery.enConflicto) {
+      resoluciones.set(claveDecision(s.squadId, 'delivery_real_pct'), delivery.override);
+    }
+    if (discovery.enConflicto) {
+      resoluciones.set(claveDecision(s.squadId, 'discovery_real_pct'), discovery.override);
+    }
 
     const deliveryDeltaPct = delta(delivery.valor, esperado);
     const discoveryDeltaPct = delta(discovery.valor, esperado);
@@ -197,25 +241,33 @@ async function aplicar(
     await upsertInitiative(i);
   }
 
-  return { squads_updated: snapshots.length, initiatives_upserted: initiatives.length };
+  return {
+    summary: { squads_updated: snapshots.length, initiatives_upserted: initiatives.length },
+    resoluciones,
+  };
 }
 
-// Resuelve un real: si no hay conflicto (o el equipo aceptó el import) se escribe
-// el entrante y el override vuelve a false; si el equipo rechazó (o no decidió,
-// default seguro) se conserva el valor manual con su override intacto.
-function resolverCampo(
+// Resuelve un real. Con conflicto real (override activo + valor distinto): si el
+// equipo aceptó, se escribe el entrante y el override se libera a false; si
+// rechazó o no decidió (default seguro), se conserva el manual con su override.
+// Sin conflicto se escribe el entrante, pero el override NO se toca: si ya estaba
+// activo y el CSV coincide por casualidad, liberarlo dejaría un import futuro
+// pisando lo manual sin confirmación (rompería la garantía del SDD).
+export function resolverCampo(
   field: 'delivery_real_pct' | 'discovery_real_pct',
   squadId: number,
   entrante: number,
   manual: number | undefined,
   overrideActivo: boolean,
   decisiones: Map<string, boolean>
-): { valor: number; override: boolean } {
+): { valor: number; override: boolean; enConflicto: boolean } {
   const enConflicto = overrideActivo && manual !== undefined && manual !== entrante;
-  if (!enConflicto) return { valor: entrante, override: false };
+  if (!enConflicto) return { valor: entrante, override: overrideActivo, enConflicto: false };
 
   const acepta = decisiones.get(claveDecision(squadId, field)) ?? false;
-  return acepta ? { valor: entrante, override: false } : { valor: manual as number, override: true };
+  return acepta
+    ? { valor: entrante, override: false, enConflicto: true }
+    : { valor: manual as number, override: true, enConflicto: true };
 }
 
 async function upsertInitiative(i: ParsedInitiative): Promise<void> {
