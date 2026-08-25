@@ -1,13 +1,17 @@
 import 'dotenv/config';
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-// Toca Neon de verdad. Corre en local (donde .env trae DATABASE_URL) y se SALTA
-// en CI, que no tiene la URL. Los imports de Prisma van dinámicos adentro de los
-// hooks para que, al saltarse, la recolección de CI no dependa del cliente generado.
+// Toca Neon de verdad y es DESTRUCTIVO: borra los SquadSnapshot/Initiative del
+// squad 1 en beforeAll/afterAll. Por eso, además de necesitar DATABASE_URL, pide
+// opt-in explícito (RUN_DB_INTEGRATION): así un `npm test` normal en local no
+// pisa datos reales del squad 1 sin querer. Se salta en CI (sin URL) igual. Los
+// imports de Prisma van dinámicos adentro de los hooks para que, al saltarse, la
+// recolección de CI no dependa del cliente generado.
 const hayDb = !!process.env.DATABASE_URL;
+const optIn = !!process.env.RUN_DB_INTEGRATION;
 const T = 30000;
 
-describe.skipIf(!hayDb)('importService · integración contra Neon', () => {
+describe.skipIf(!hayDb || !optIn)('importService · integración contra Neon', () => {
   const SQUAD = 1; // Préstamos, ya sembrado
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let prisma: any, procesarImport: any, confirmarImport: any;
