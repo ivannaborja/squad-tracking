@@ -86,6 +86,7 @@ export async function PATCH(
   const aviso = avisoRojoSinNeed(
     semaforo,
     needs.map((n) => ({
+      id: n.id,
       descripcion: n.descripcion,
       dueno: n.dueno,
       semanaInicio: iso(n.semanaInicio),

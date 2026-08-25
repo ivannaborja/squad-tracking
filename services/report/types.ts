@@ -26,7 +26,10 @@ export interface PersistedSnapshot {
 }
 
 // Colecciones tal como las consume el pre-informe. Fechas ya en ISO string.
+// El `id` va en cada item para que la UI de escritura pueda editar/resolver/quitar
+// una fila puntual (PATCH/DELETE /api/{entidad}/{id}); las lecturas lo ignoran.
 export interface RiskItem {
+  id: number;
   descripcion: string;
   categoriaImpacto: string;
   severidad: string;
@@ -37,23 +40,29 @@ export interface RiskItem {
   semanaInicio: string;
   semanaFin: string;
   resuelto: boolean;
+  // Todos los squads que el riesgo afecta (RiskSquad), para reasignar desde el form.
+  squadIds: number[];
 }
 export interface NeedItem {
+  id: number;
   descripcion: string;
   dueno: string;
   semanaInicio: string;
   resuelto: boolean;
 }
 export interface AchievementItem {
+  id: number;
   descripcion: string;
   semanaInicio: string;
 }
 export interface UpcomingDeliveryItem {
+  id: number;
   descripcion: string;
   fechaEstimada: string;
   semanaInicio: string;
 }
 export interface InitiativeItem {
+  id: number;
   codigoExterno: string | null;
   nombre: string;
   tipo: string;
@@ -64,10 +73,12 @@ export interface InitiativeItem {
   semanaInicio: string;
 }
 export interface UnplannedIntakeItem {
+  id: number;
   descripcion: string;
   semanaInicio: string;
 }
 export interface ActionPlanItem {
+  id: number;
   descripcion: string;
   dueno: string;
   plazo: string;

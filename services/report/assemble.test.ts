@@ -64,6 +64,7 @@ describe('calcAHoy', () => {
 
 describe('avisoRojoSinNeed', () => {
   const needActivo: NeedItem = {
+    id: 1,
     descripcion: 'ayuda',
     dueno: 'x',
     semanaInicio: '2026-08-11',
@@ -107,8 +108,8 @@ describe('kpiNoPlanificadas', () => {
   it('cuenta los intakes no planificados', () => {
     expect(
       kpiNoPlanificadas([
-        { descripcion: 'a', semanaInicio: '2026-08-11' },
-        { descripcion: 'b', semanaInicio: '2026-08-11' },
+        { id: 1, descripcion: 'a', semanaInicio: '2026-08-11' },
+        { id: 2, descripcion: 'b', semanaInicio: '2026-08-11' },
       ])
     ).toBe(2);
   });
@@ -152,12 +153,12 @@ describe('assembleSquadReportView', () => {
     // La sección muestra la semana (1 intake); el KPI acumula el Q (3 intakes).
     const semanal = {
       ...vacias,
-      unplannedIntake: [{ descripcion: 'de la semana', semanaInicio: '2026-08-11' }],
+      unplannedIntake: [{ id: 1, descripcion: 'de la semana', semanaInicio: '2026-08-11' }],
     };
     const trimestral = [
-      { descripcion: 'a', semanaInicio: '2026-07-07' },
-      { descripcion: 'b', semanaInicio: '2026-07-28' },
-      { descripcion: 'c', semanaInicio: '2026-08-11' },
+      { id: 2, descripcion: 'a', semanaInicio: '2026-07-07' },
+      { id: 3, descripcion: 'b', semanaInicio: '2026-07-28' },
+      { id: 4, descripcion: 'c', semanaInicio: '2026-08-11' },
     ];
     const v = assembleSquadReportView({
       squadId: 5,

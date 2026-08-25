@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Poppins, Roboto, Roboto_Mono } from "next/font/google";
 import "./globals.css";
+import { EditorProvider } from "../components/write/EditorContext";
+import { EditorSelector } from "../components/write/EditorSelector";
 
 // Poppins para títulos, Roboto para cuerpo, Roboto Mono para cifras/fechas: el
 // trío que fija el Design System.
@@ -16,7 +19,31 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className={`${poppins.variable} ${roboto.variable} ${robotoMono.variable} h-full`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <EditorProvider>
+          <div
+            className="no-print"
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 16,
+              padding: "8px 24px",
+              background: "#ffffff",
+              borderBottom: "1px solid #e6e8eb",
+            }}
+          >
+            <Link
+              href="/"
+              style={{ fontFamily: "var(--font-poppins), Poppins, sans-serif", fontSize: 14, fontWeight: 600, color: "#0a2f5c", textDecoration: "none" }}
+            >
+              Seguimiento de Squads
+            </Link>
+            <EditorSelector />
+          </div>
+          {children}
+        </EditorProvider>
+      </body>
     </html>
   );
 }
