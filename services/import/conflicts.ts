@@ -11,13 +11,13 @@ export interface Conflicto {
 export interface RealesEntrantes {
   squadId: number;
   deliveryRealPct: number;
-  discoveryRealPct: number;
+  discoveryRealPct: number | null;
 }
 
 export interface EstadoActual {
   deliveryRealPct: number;
   deliveryManualOverride: boolean;
-  discoveryRealPct: number;
+  discoveryRealPct: number | null;
   discoveryManualOverride: boolean;
 }
 
@@ -36,11 +36,17 @@ export function detectarConflictos(
       incoming_value: entrante.deliveryRealPct,
     });
   }
-  if (actual.discoveryManualOverride && actual.discoveryRealPct !== entrante.discoveryRealPct) {
+  // Sólo hay conflicto de discovery si el import trae un valor (los squads
+  // solo-delivery llegan con discovery null: no pisan nada, no preguntan).
+  if (
+    entrante.discoveryRealPct !== null &&
+    actual.discoveryManualOverride &&
+    actual.discoveryRealPct !== entrante.discoveryRealPct
+  ) {
     conflictos.push({
       squad_id: entrante.squadId,
       field: 'discovery_real_pct',
-      current_manual_value: actual.discoveryRealPct,
+      current_manual_value: actual.discoveryRealPct as number,
       incoming_value: entrante.discoveryRealPct,
     });
   }

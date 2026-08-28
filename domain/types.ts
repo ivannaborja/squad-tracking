@@ -16,12 +16,14 @@ export interface SquadSnapshot {
   fechaReferencia: string; // YYYY-MM-DD, el día real del check-in
   trimestre: string;
   deliveryRealPct: number; // fracción 0–1
-  discoveryRealPct: number;
+  // Nullable: un squad solo-delivery (ej. Empresas, sin nodo Discovery en
+  // Smartsheet) no tiene discovery. Un null honesto, no un 0 que fingiría brecha.
+  discoveryRealPct: number | null;
   deliveryManualOverride: boolean;
   discoveryManualOverride: boolean;
   esperadoPct: number;
   deliveryDeltaPct: number;
-  discoveryDeltaPct: number;
+  discoveryDeltaPct: number | null; // null cuando no hay discovery real
   semaforo: Semaforo;
   frasePronostico: string | null;
   editadoPor: string;

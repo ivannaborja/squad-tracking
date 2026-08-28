@@ -14,7 +14,8 @@ const SQUADS = [
   'Cuentas',
   'Adquirencia',
   'TC',
-  'Empresas Actual',
+  // Debe matchear exacto el nombre del squad en el export de Smartsheet ("Empresas").
+  'Empresas',
   'Pagos y transferencias',
 ];
 

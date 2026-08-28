@@ -1,22 +1,10 @@
-import type { DataSource, Period } from '../../ports/DataSource';
+import type { DataSource, Period, ParsedInitiative } from '../../ports/DataSource';
 import type { SquadSnapshot } from '../../domain/types';
 import { esperadoPct } from '../../domain/esperadoPct';
 import { delta } from '../../domain/delta';
 import { semaforo as calcSemaforo } from '../../domain/semaforo';
 
-// La fila de iniciativa que va a la tabla Initiative. codigoExterno nullable: el
-// Smartsheet real no siempre trae ID.
-export interface ParsedInitiative {
-  squadId: number;
-  codigoExterno: string | null;
-  nombre: string;
-  tipo: string;
-  estado: string;
-  pctAvance: number;
-  fechaInicio: string;
-  fechaFin: string;
-  semanaInicio: string;
-}
+export type { ParsedInitiative };
 
 // Lo mínimo de PrismaClient que usa persist(). Se inyecta en vez de importar el
 // cliente generado: así el adaptador no arrastra Postgres a quien sólo mapea, y
@@ -79,6 +67,11 @@ export class CsvDataSource implements DataSource {
         editadoPor: period.editadoPor,
       };
     });
+  }
+
+  // El CSV plano no reporta huecos: viene ya reprocesado, una fila por dato.
+  warnings(): string[] {
+    return [];
   }
 
   parseInitiatives(period: Period): ParsedInitiative[] {
