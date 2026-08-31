@@ -45,7 +45,7 @@ Neon y Supabase permiten uso comercial en su free tier; el DB no es el problema.
 |---|---|---|
 | Backend + Frontend | **Next.js (App Router), TypeScript** | Un solo proyecto y lenguaje; la "API" son route handlers en el mismo repo, sin backend separado. Se descarta **FastAPI+React** (duplica lenguajes y deploys sin ganancia) y **no-code** (no deja construir el adaptador que Camino B exige). |
 | Base de datos | **Postgres gestionado — Neon (primaria), Supabase (alt.)** con **Prisma** | Relacional y aburrido; los datos son tabulares. Neon sobre Supabase por el free tier: auto-resume vs. pausa a los 7 días de inactividad (ver "Restricción dura: presupuesto cero"). Prisma sobre Drizzle por documentación que el agente maneja mejor (costo asumido: un poco más pesado). Se descarta NoSQL (no hay nada no-relacional) y SQLite/Turso (suma detalle de infra sin ganar nada a esta escala). |
-| Gráficos | **Recharts** | Declarativo y probado; alcanza para avance por squad y cartera por estado. |
+| Gráficos | **Recharts** | Declarativo y probado; alcanza para el avance por squad y los gráficos del informe. |
 | Deploy | **Vercel** | Cero config con Next.js; free tier sobra para 2 personas. Se descarta infra propia/contenedores: no hay razón para operar servidores que un no-dev no quiere administrar. |
 | Export PDF/imagen | **Client-side primero**: CSS de impresión (`window.print()`) para PDF y `html-to-image` para PNG | Exporta lo que se ve, sin operación de servidor. **Upgrade nombrado:** si la fidelidad no alcanza, mover el export a Playwright (Chrome headless) en el servidor. |
 
@@ -78,7 +78,7 @@ CSV ni un JSON de Smartsheet; sólo ve un modelo interno propio.**
   adelante. Al agregarlo no se toca ningún otro archivo.
 - **`services/report/`** — capa de informe: toma `SquadSnapshot[]` (leídos de
   Postgres) **más** las tablas relacionadas (`Risk`, `Need`, `Achievement`,
-  `UpcomingDelivery`, `Initiative`, `UnplannedIntake`, `ActionPlan`), aplica
+  `UpcomingDelivery`, `Initiative`, `UnplannedIntake`), aplica
   reglas de `domain` y **ensambla `SquadReportView`** — el objeto que junta el
   snapshot con sus colecciones para el pre-informe y el comparativo. `SquadReportView`
   **se arma al leer, no se persiste así** (es la vista, no la fila). Importa sólo

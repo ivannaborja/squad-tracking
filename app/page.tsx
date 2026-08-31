@@ -1,10 +1,9 @@
-import { getActionPlans, getOverview } from '../services/report/reportService';
+import { getOverview } from '../services/report/reportService';
 import { C, FONT } from '../lib/ds-tokens';
 import { Kpi, Mono } from '../components/ds';
 import { ExportButton } from '../components/ExportButton';
 import { hoyISO } from '../lib/dates';
 import { SquadGrid } from '../components/portfolio/SquadGrid';
-import { ActionPlansSection } from '../components/portfolio/ActionPlansSection';
 import { ImportPanel } from '../components/portfolio/ImportPanel';
 
 // Lee la base en cada request y usa la fecha de hoy: nunca se prerenderiza.
@@ -12,7 +11,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function Comparativo() {
   const date = hoyISO();
-  const [squads, actionPlans] = await Promise.all([getOverview(date), getActionPlans()]);
+  const squads = await getOverview(date);
 
   const cuenta = (s: string) => squads.filter((x) => x.semaforo === s).length;
 
@@ -41,8 +40,6 @@ export default async function Comparativo() {
       </div>
 
       <SquadGrid squads={squads} />
-
-      <ActionPlansSection actionPlans={actionPlans} />
     </div>
   );
 }

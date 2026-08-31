@@ -78,16 +78,6 @@ export interface UnplannedIntakeItem {
   descripcion: string;
   semanaInicio: string;
 }
-export interface ActionPlanItem {
-  id: number;
-  descripcion: string;
-  dueno: string;
-  plazo: string;
-  estado: string;
-  semanaInicio: string;
-  resuelto: boolean;
-}
-
 export interface Collections {
   risks: RiskItem[];
   needs: NeedItem[];
@@ -122,7 +112,6 @@ export interface SquadReportView {
   avisoRojoSinNeed: boolean;
   kpiNoPlanificadas: number;
   collections: Collections;
-  actionPlans: ActionPlanItem[]; // de portafolio, no del squad
 }
 
 // La proyección resumida del comparativo (sin colecciones completas).
