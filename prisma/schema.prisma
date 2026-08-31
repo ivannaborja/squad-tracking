@@ -25,6 +25,7 @@ model Squad {
   upcomingDeliveries UpcomingDelivery[]
   achievements       Achievement[]
   unplannedIntakes   UnplannedIntake[]
+  informesSemanales  InformeSquadSemanal[]
 
   @@map("squad")
 }
@@ -183,4 +184,37 @@ model ImportStaging {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("import_staging")
+}
+
+// Narrativa del informe ejecutivo GENERAL (portafolio) por semana. La escribe Dai
+// a mano; ninguno de estos campos se auto-genera. Una fila por semana.
+// pases_planificados es el KPI 4 (número que Dai maneja verbalmente, no cálculo).
+model InformeSemanal {
+  id                Int      @id @default(autoincrement())
+  semanaInicio      DateTime @unique @map("semana_inicio") @db.Date
+  novedades         String?
+  lectura           String?
+  pasesPlanificados Int?     @map("pases_planificados")
+
+  @@map("informe_semanal")
+}
+
+// Narrativa del informe INDIVIDUAL por squad y por semana. Novedades,
+// pases_produccion y despriorizaciones son texto libre nuevo; el resto de las
+// secciones del informe individual (próximas entregas, ingresos no planificados,
+// necesitamos, bloqueos) reutilizan las entidades existentes. pases_planificados
+// es el KPI 4 de ese squad.
+model InformeSquadSemanal {
+  id                Int      @id @default(autoincrement())
+  squadId           Int      @map("squad_id")
+  semanaInicio      DateTime @map("semana_inicio") @db.Date
+  novedades         String?
+  pasesProduccion   String?  @map("pases_produccion")
+  despriorizaciones String?
+  pasesPlanificados Int?     @map("pases_planificados")
+
+  squad Squad @relation(fields: [squadId], references: [id])
+
+  @@unique([squadId, semanaInicio])
+  @@map("informe_squad_semanal")
 }
