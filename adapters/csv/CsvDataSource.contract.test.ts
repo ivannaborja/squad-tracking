@@ -67,9 +67,8 @@ describe('CsvDataSource — contrato DataSource', () => {
     expect(lealtad.semaforo).toBe('amarillo'); // −0.11
   });
 
-  it('upsert de iniciativas: con codigo_externo hace upsert, sin código inserta nueva', async () => {
-    const upsertKeys: { squadId: number; codigoExterno: string }[] = [];
-    let creates = 0;
+  it('las iniciativas del CSV se insertan (sin rowId de Smartsheet no hay upsert)', async () => {
+    const createdRows: Record<string, unknown>[] = [];
     let snapshotUpserts = 0;
 
     const fake: PersistClient = {
@@ -79,11 +78,8 @@ describe('CsvDataSource — contrato DataSource', () => {
         },
       },
       initiative: {
-        async upsert({ where }) {
-          upsertKeys.push(where.squadId_codigoExterno);
-        },
-        async create() {
-          creates++;
+        async create({ data }) {
+          createdRows.push(data);
         },
       },
     };
@@ -91,11 +87,10 @@ describe('CsvDataSource — contrato DataSource', () => {
     await new CsvDataSource(CSV).persist(fake, PERIOD);
 
     expect(snapshotUpserts).toBe(3); // un snapshot por squad
-    expect(creates).toBe(1); // la única fila sin codigo_externo
-    expect(upsertKeys).toEqual([
-      { squadId: 1, codigoExterno: 'IBD015' },
-      { squadId: 2, codigoExterno: 'IBD022' },
-      { squadId: 3, codigoExterno: 'IBD030' },
-    ]);
+    // Las 4 filas se insertan: el CSV no trae identificador de fila de Smartsheet,
+    // así que no hay clave natural para upsertear entre semanas.
+    expect(createdRows).toHaveLength(4);
+    expect(createdRows.every((r) => r.smartsheetRowId === null && r.portafolio === false)).toBe(true);
+    expect(createdRows.map((r) => r.codigoExterno)).toEqual(['IBD015', null, 'IBD022', 'IBD030']);
   });
 });

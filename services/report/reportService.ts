@@ -10,6 +10,7 @@ import type {
 } from './types';
 
 const iso = (d: Date): string => d.toISOString().slice(0, 10);
+const isoN = (d: Date | null): string | null => (d ? d.toISOString().slice(0, 10) : null);
 
 // La fila más reciente por fecha_referencia, sin importar a qué semana pertenece
 // (api.md): si no hubo check-in esta semana, se usa el último que exista.
@@ -116,13 +117,17 @@ export async function getSquadReportView(
     })),
     initiatives: initiatives.map((i) => ({
       id: i.id,
+      smartsheetRowId: i.smartsheetRowId,
       codigoExterno: i.codigoExterno,
+      portafolio: i.portafolio,
       nombre: i.nombre,
       tipo: i.tipo,
+      etapa: i.etapa,
       estado: i.estado,
       pctAvance: i.pctAvance,
-      fechaInicio: iso(i.fechaInicio),
-      fechaFin: iso(i.fechaFin),
+      fechaInicio: isoN(i.fechaInicio),
+      fechaFin: isoN(i.fechaFin),
+      fechaFinReal: isoN(i.fechaFinReal),
       semanaInicio: iso(i.semanaInicio),
     })),
     unplannedIntake: unplannedIntake.map((u) => ({

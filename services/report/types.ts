@@ -64,13 +64,17 @@ export interface UpcomingDeliveryItem {
 }
 export interface InitiativeItem {
   id: number;
+  smartsheetRowId: string | null;
   codigoExterno: string | null;
+  portafolio: boolean;
   nombre: string;
   tipo: string;
+  etapa: string | null;
   estado: string;
-  pctAvance: number;
-  fechaInicio: string;
-  fechaFin: string;
+  pctAvance: number | null;
+  fechaInicio: string | null;
+  fechaFin: string | null;
+  fechaFinReal: string | null;
   semanaInicio: string;
 }
 export interface UnplannedIntakeItem {

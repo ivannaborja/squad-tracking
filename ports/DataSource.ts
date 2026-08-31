@@ -10,18 +10,24 @@ export interface Period {
   editadoPor: string;
 }
 
-// La fila de iniciativa que va a la tabla Initiative. codigoExterno nullable: el
-// Smartsheet real no siempre trae ID. Vive en el puerto (no en un adaptador
-// puntual) porque es parte del contrato que todo adaptador y el import comparten.
+// La fila de iniciativa que va a la tabla Initiative. Vive en el puerto (no en un
+// adaptador puntual) porque es parte del contrato que todo adaptador y el import
+// comparten. Muchos campos son nullable: la planilla real tiene huecos honestos
+// (filas sin código, sin etapa, sin % o sin fechas cargadas), y el CSV no trae
+// `smartsheetRowId`. La identidad del upsert es `smartsheetRowId` cuando existe.
 export interface ParsedInitiative {
   squadId: number;
+  smartsheetRowId: string | null;
   codigoExterno: string | null;
+  portafolio: boolean;
   nombre: string;
   tipo: string;
+  etapa: string | null;
   estado: string;
-  pctAvance: number;
-  fechaInicio: string;
-  fechaFin: string;
+  pctAvance: number | null;
+  fechaInicio: string | null;
+  fechaFin: string | null;
+  fechaFinReal: string | null;
   semanaInicio: string;
 }
 
