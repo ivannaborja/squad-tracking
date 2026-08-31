@@ -47,8 +47,8 @@ Agile Coach), editado_por`
   nunca es null (todo squad tiene delivery; es lo que pinta el color). El semáforo
   no depende de discovery, así que un discovery nulo no lo afecta.
 
-**Initiative** — una fila por iniciativa/subtarea del CSV importado; alimenta el
-gráfico de "cartera por estado" que promete `scope.md`:
+**Initiative** — una fila por iniciativa/subtarea del import de Smartsheet
+(espejo del export, sólo lectura):
 `id, squad_id FK, codigo_externo (nullable), nombre, tipo (delivery/discovery),
 estado, pct_avance, fecha_inicio, fecha_fin, semana_inicio`
 
@@ -80,12 +80,6 @@ resuelto`
 **UnplannedIntake** (iniciativas que entraron al portafolio sin estar
 planificadas — "ingresos no planificados" en el informe; ⚠️ es *intake*, NO
 plata; ver "Ojo con 'ingresos'") — `id, squad_id FK, descripcion, semana_inicio`
-
-**ActionPlan** (Planes de acción / mejora continua) — **es de portafolio, no de
-squad** (fuente real pág. 3: ej. "Discovery en Q-1 — [PMO] · desde Q3", sin
-squad asociado). Sin `squad_id`:
-`id, descripcion, dueño, plazo (texto libre: "Q3", "próx. sprint"…), estado,
-semana_inicio, resuelto`
 
 ### Regla del semáforo (vive en `domain/`, no en la tabla)
 
@@ -152,9 +146,9 @@ se recalculan solos; `domain/` es puro"):
   (8 squads × 1 fila/semana) y necesario para poder verificar algún día la regla
   candidata de "amarillo sostenido 3 semanas" (pregunta abierta #6) — sin
   historial esa regla nunca sería verificable, ni contando desde que se active.
-- **Initiative como tabla separada**: `scope.md` promete un gráfico de "cartera
-  por estado". Eso necesita datos por iniciativa, no sólo el % agregado por
-  squad; sin esta tabla `scope.md` prometía algo que el modelo no podía dar.
+- **Initiative como tabla separada**: el informe necesita datos por iniciativa
+  (ej. pases a producción), no sólo el % agregado por squad; sin esta tabla eso
+  no se podría dar.
 - **`editado_por` en SquadSnapshot**: mitiga parcialmente la deuda de seguridad
   ya declarada en `architecture.md` (acceso sin login = sin registro de quién
   cambió qué). **Aviso: es auditoría blanda** — sin autenticación, sólo puede
@@ -182,9 +176,6 @@ eliminar la homonimia de raíz: el nombre en inglés ya no colisiona con "ingres
 
 ### Cerrado con la fuente real (Informe_estado_semanal_ejemplo)
 
-- **ActionPlan** (era Abierto #4) → **resuelto, pág. 3**: existe como sección
-  propia "Planes de acción (mejora continua)", **de portafolio, sin squad**. Se
-  quitó `squad_id` y se agregó `plazo`.
 - **"No planificadas"** (era Abierto #5) → **resuelto, pág. 1**: es el acumulado
   de `UnplannedIntake` del trimestre. Se quitó el flag `Initiative.planificada`;
   el KPI sale de `COUNT(UnplannedIntake)`.
@@ -505,7 +496,7 @@ aguas abajo.
 - **Pasos:**
   1. `adapters/csv/CsvDataSource` parsea el CSV → modelo interno. Toda rareza del
      CSV vive **sólo acá**.
-  2. Alimenta `Initiative[]` (gráfico de cartera por estado) y los **campos de
+  2. Alimenta `Initiative[]` y los **campos de
      import** del `SquadSnapshot` de la semana: `delivery_real_pct` y
      `discovery_real_pct`.
   3. Se persiste en Postgres. La import cuenta como un **check-in**: fija
@@ -578,12 +569,10 @@ pegarle a varios squads a la vez.
 - **Disparador:** abre el pre-informe de un squad.
 - **Contenido** — el pre-informe **es un `SquadReportView`** (el objeto que
   `services/report` ensambla al leer; ver `api.md` y `architecture.md`). De
-  `scope.md`: KPIs; avance por squad (%) y cartera por estado (gráfico, de
-  `Initiative`); semáforo + frase de pronóstico; logros de la semana
-  (`Achievement`); ingresos no planificados (`UnplannedIntake`); tabla de
-  Riesgos/Bloqueos; próximas entregas (`UpcomingDelivery`); "Necesitamos de
-  ustedes" (`Need`, no exclusivo de rojo); planes de acción (`ActionPlan`, de
-  portafolio).
+  `scope.md`: KPIs; avance por squad (%); semáforo + frase de pronóstico; logros
+  de la semana (`Achievement`); ingresos no planificados (`UnplannedIntake`);
+  tabla de Riesgos/Bloqueos; próximas entregas (`UpcomingDelivery`); "Necesitamos
+  de ustedes" (`Need`, no exclusivo de rojo).
 - **Cálculo:** el `semaforo` y los deltas congelados salen **persistidos** del
   último check-in (el color no se recalcula al mirar); el esperado/delta "a hoy"
   se calcula en vivo contra la fecha pedida y se muestra aparte (ver Flujo 1 y
@@ -724,9 +713,8 @@ ninguna fila** (Flujo 1).
   persistido con sus colecciones. Contiene: valores persistidos del último
   check-in (`semaforo`, reales, esperado/deltas congelados) + `datos_de` + bloque
   `a_hoy` (esperado/deltas contra `date`) + colecciones (`risks`, `needs`,
-  `achievements`, `upcomingDeliveries`, `initiatives`, `unplannedIntake`) +
-  `actionPlans` de portafolio. Incluye el **aviso no bloqueante** "rojo sin Need"
-  si aplica.
+  `achievements`, `upcomingDeliveries`, `initiatives`, `unplannedIntake`).
+  Incluye el **aviso no bloqueante** "rojo sin Need" si aplica.
 - **404:** `squadId` inexistente. Si el squad existe pero **nunca** tuvo un
   snapshot, `semaforo`/reales/`datos_de` van `null` y sólo se devuelve el bloque
   `a_hoy` (esperado en vivo, sin color oficial todavía).
@@ -821,9 +809,9 @@ entrega o un intake mal cargado no se "resuelve", se saca. Para eso exponen:
 - `DELETE /api/upcoming-deliveries/{id}`
 - `DELETE /api/unplanned-intake/{id}`
 
-**204** sin cuerpo al eliminar; **404** si el `id` no existe. **Riesgos, needs y
-planes de acción NO tienen `DELETE`**: se dan de baja con `PATCH { resuelto: true }`
-(conservan el historial). `Initiative` sigue sin escritura propia (sólo import).
+**204** sin cuerpo al eliminar; **404** si el `id` no existe. **Riesgos y needs
+NO tienen `DELETE`**: se dan de baja con `PATCH { resuelto: true }` (conservan el
+historial). `Initiative` sigue sin escritura propia (sólo import).
 
 ---
 
@@ -921,16 +909,16 @@ justo lo que el flujo por campo existe para evitar.
   /api/initiatives`. Las iniciativas son un espejo del CSV de Smartsheet, no algo
   que el equipo de Agile Coach edite a mano en la web — un valor cargado así lo
   pisaría el próximo
-  import. Se **leen** (para el gráfico de cartera por estado y el KPI "no
-  planificadas") vía la colección `initiatives` del GET de squad. Si algún día
+  import. Se **leen** (para el KPI "no planificadas" y el informe) vía la
+  colección `initiatives` del GET de squad. Si algún día
   hiciera falta crear/editar una iniciativa fuera de Smartsheet, ahí entraría el
   endpoint; hoy no existe **a propósito**.
 - **Iniciativas sin `codigo_externo` se duplican entre semanas.** El upsert de
   `Initiative` matchea por `(squad_id, codigo_externo)`; las filas del CSV que
   vienen **sin ID** (Smartsheet no siempre lo trae) no tienen clave natural, así
   que cada import las **inserta de nuevo** en vez de actualizar la de la semana
-  pasada. Consecuencia: el gráfico de cartera y el conteo pueden inflarse con
-  duplicados de esas filas sin código. **Riesgo aceptado en v1**; se resolvería
+  pasada. Consecuencia: el conteo puede inflarse con duplicados de esas filas sin
+  código. **Riesgo aceptado en v1**; se resolvería
   exigiendo un ID en Smartsheet, o con una clave sustituta (ej. hash de
   `nombre`), decisión aparte y no ahora.
 - **Edición concurrente equipo de Agile Coach/equipo dev: no cubierta.** Si
