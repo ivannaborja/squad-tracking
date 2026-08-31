@@ -806,6 +806,18 @@ riesgo ya resuelto.
 `/api/upcoming-deliveries`, `/api/unplanned-intake`, `/api/action-plans`. Mismo
 patrón: escriben una entrada de entrada, no tocan calculados.)
 
+**Borrado (`DELETE`) — sólo tres entidades.** `achievements`,
+`upcoming-deliveries` y `unplanned-intake` **no tienen `resuelto`**: un logro, una
+entrega o un intake mal cargado no se "resuelve", se saca. Para eso exponen:
+
+- `DELETE /api/achievements/{id}`
+- `DELETE /api/upcoming-deliveries/{id}`
+- `DELETE /api/unplanned-intake/{id}`
+
+**204** sin cuerpo al eliminar; **404** si el `id` no existe. **Riesgos, needs y
+planes de acción NO tienen `DELETE`**: se dan de baja con `PATCH { resuelto: true }`
+(conservan el historial). `Initiative` sigue sin escritura propia (sólo import).
+
 ---
 
 ### Import de CSV — **dos fases** (Flujo 3)

@@ -8,6 +8,7 @@ export type Row = Record<string, unknown>;
 export interface Delegate {
   create(args: { data: Row }): Promise<unknown>;
   update(args: { where: { id: number }; data: Row }): Promise<unknown>;
+  delete(args: { where: { id: number } }): Promise<unknown>;
 }
 
 // Las entidades de entrada sin cálculo (needs, achievements, upcoming, intakes,
@@ -32,6 +33,23 @@ export function editarEntidad(delegate: Delegate, aDataParcial: (b: Row) => Row)
     if (!Number.isInteger(id)) return errorJson('bad_request', 'id inválido', 400);
     const row = await delegate.update({ where: { id }, data: aDataParcial((await request.json()) as Row) });
     return NextResponse.json(row, { status: 200 });
+  };
+}
+
+// Logros, próximas entregas e ingresos no planificados no tienen `resuelto`: un
+// dato mal cargado se saca de verdad. Borra por id; 404 si no existe (Prisma
+// P2025), 204 sin cuerpo al eliminar. Riesgos/needs/planes NO usan esto: se
+// "resuelven" con PATCH resuelto:true.
+export function borrarEntidad(delegate: Delegate) {
+  return async function DELETE(_request: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+    const id = Number((await ctx.params).id);
+    if (!Number.isInteger(id)) return errorJson('bad_request', 'id inválido', 400);
+    try {
+      await delegate.delete({ where: { id } });
+    } catch {
+      return errorJson('not_found', 'no existe', 404);
+    }
+    return new NextResponse(null, { status: 204 });
   };
 }
 

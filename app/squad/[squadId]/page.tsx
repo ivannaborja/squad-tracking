@@ -5,7 +5,7 @@ import { C, FONT } from '../../../lib/ds-tokens';
 import { Card, SectionTitle, SemaforoBadge, Mono, stripeColor } from '../../../components/ds';
 import { ExportButton } from '../../../components/ExportButton';
 import { hoyISO, inicioDeSemana } from '../../../lib/dates';
-import { EditModeProvider } from '../../../components/write/EditMode';
+import { EditModeProvider, EditModeToggle } from '../../../components/write/EditMode';
 import { ListaSimple } from '../../../components/squad/shared';
 import { CheckinSection } from '../../../components/squad/CheckinSection';
 import { RisksSection } from '../../../components/squad/RisksSection';
@@ -51,6 +51,7 @@ export default async function Detalle({ params }: { params: Promise<{ squadId: s
                 <span style={{ fontSize: 13, color: C.gray600 }}>
                   Datos de <Mono style={{ color: C.gray900 }}>{view.datosDe ?? '—'}</Mono>
                 </span>
+                <EditModeToggle />
                 <ExportButton targetId="reporte" nombre={`${view.squadNombre}-${date}`} />
               </div>
             </div>
