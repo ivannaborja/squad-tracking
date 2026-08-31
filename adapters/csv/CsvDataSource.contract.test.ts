@@ -27,7 +27,8 @@ function esSnapshotValido(s: SquadSnapshot): boolean {
     /^\d{4}-\d{2}-\d{2}$/.test(s.fechaReferencia) &&
     typeof s.trimestre === 'string' &&
     s.deliveryRealPct >= 0 && s.deliveryRealPct <= 1 &&
-    s.discoveryRealPct >= 0 && s.discoveryRealPct <= 1 &&
+    // Discovery nullable: un squad solo-delivery no tiene discovery.
+    (s.discoveryRealPct === null || (s.discoveryRealPct >= 0 && s.discoveryRealPct <= 1)) &&
     typeof s.deliveryManualOverride === 'boolean' &&
     typeof s.discoveryManualOverride === 'boolean' &&
     s.esperadoPct >= 0 && s.esperadoPct <= 1 &&

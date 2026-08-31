@@ -24,8 +24,14 @@ interface Conflicto {
   incoming_value: number;
 }
 type Fase1 =
-  | { status: 'applied'; summary: Summary }
-  | { status: 'needs_confirmation'; import_token: string; conflicts: Conflicto[]; non_conflicting_preview: Summary };
+  | { status: 'applied'; summary: Summary; warnings: string[] }
+  | {
+      status: 'needs_confirmation';
+      import_token: string;
+      conflicts: Conflicto[];
+      non_conflicting_preview: Summary;
+      warnings: string[];
+    };
 type Fase2 = { status: 'confirmed'; summary: Summary };
 
 const labelCampo = (f: Conflicto['field']) => (f === 'delivery_real_pct' ? 'Delivery' : 'Discovery');
@@ -41,12 +47,16 @@ export function ImportPanel() {
   const [fase1, setFase1] = useState<Fase1 | null>(null);
   const [decisiones, setDecisiones] = useState<Record<string, boolean>>({});
   const [aplicado, setAplicado] = useState<Summary | null>(null);
+  // Lo que el adaptador no pudo leer con confianza (o no importa aún): se muestra
+  // al aplicar, en vez de esconder el hueco.
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   function reset() {
     setFile(null);
     setFase1(null);
     setDecisiones({});
     setAplicado(null);
+    setWarnings([]);
     setError(null);
   }
   function cerrar() {
@@ -63,6 +73,7 @@ export function ImportPanel() {
     fd.append('editado_por', editadoPor);
     const r = await mutate<Fase1>({ url: '/api/import', method: 'POST', body: fd, refresh: false });
     if (!r) return;
+    setWarnings(r.warnings ?? []);
     if (r.status === 'applied') {
       setAplicado(r.summary);
     } else {
@@ -98,13 +109,13 @@ export function ImportPanel() {
   return (
     <>
       <Button kind="secondary" onClick={() => setOpen(true)}>
-        Importar CSV
+        Importar
       </Button>
 
       {open && (
-        <Modal title="Importar CSV (Smartsheet)" onClose={aplicado || (fase1 && fase1.status === 'needs_confirmation') ? cerrar : () => { setOpen(false); reset(); }}>
+        <Modal title="Importar (Smartsheet .xlsx o CSV)" onClose={aplicado || (fase1 && fase1.status === 'needs_confirmation') ? cerrar : () => { setOpen(false); reset(); }}>
           {aplicado ? (
-            <Aplicado summary={aplicado} onClose={cerrar} />
+            <Aplicado summary={aplicado} warnings={warnings} onClose={cerrar} />
           ) : fase1 && fase1.status === 'needs_confirmation' ? (
             <Conflictos
               conflicts={fase1.conflicts}
@@ -118,12 +129,12 @@ export function ImportPanel() {
           ) : (
             <>
               <p style={{ margin: 0, fontSize: 14, color: C.gray600 }}>
-                Subí el export de Smartsheet. Si algún real ya lo corregiste a mano y el CSV trae otro
-                valor, te vamos a pedir confirmación antes de pisarlo.
+                Subí el export de Smartsheet (.xlsx) o un CSV. Si algún real ya lo corregiste a mano y el
+                archivo trae otro valor, te vamos a pedir confirmación antes de pisarlo.
               </p>
               <input
                 type="file"
-                accept=".csv,text/csv"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 style={{ fontSize: 14, fontFamily: FONT.body }}
               />
@@ -145,17 +156,45 @@ export function ImportPanel() {
   );
 }
 
-function Aplicado({ summary, onClose }: { summary: Summary; onClose: () => void }) {
+function Aplicado({
+  summary,
+  warnings,
+  onClose,
+}: {
+  summary: Summary;
+  warnings: string[];
+  onClose: () => void;
+}) {
   return (
     <>
       <p style={{ margin: 0, fontSize: 15, color: C.navy900 }}>Import aplicado.</p>
       <p style={{ margin: 0, fontSize: 14, color: C.gray600 }}>
         {summary.squads_updated} squads actualizados · {summary.initiatives_upserted} iniciativas.
       </p>
+      {warnings.length > 0 && <Advertencias warnings={warnings} />}
       <div>
         <Button onClick={onClose}>Listo</Button>
       </div>
     </>
+  );
+}
+
+// Lo que el import no pudo leer con confianza (o no importa aún): un hueco visible
+// vale más que un dato inventado en silencio.
+function Advertencias({ warnings }: { warnings: string[] }) {
+  return (
+    <div style={{ border: `1px solid ${C.gray200}`, borderRadius: 8, padding: '10px 14px' }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: C.navy900 }}>
+        {warnings.length} {warnings.length === 1 ? 'aviso' : 'avisos'}
+      </div>
+      <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+        {warnings.map((w, i) => (
+          <li key={i} style={{ fontSize: 13, color: C.gray600 }}>
+            {w}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

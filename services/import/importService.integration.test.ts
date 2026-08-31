@@ -14,7 +14,7 @@ const T = 30000;
 describe.skipIf(!hayDb || !optIn)('importService · integración contra Neon', () => {
   const SQUAD = 1; // Préstamos, ya sembrado
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let prisma: any, procesarImport: any, confirmarImport: any;
+  let prisma: any, procesarImport: any, confirmarImport: any, CsvDataSource: any;
 
   const csv = (delivery: number) =>
     `squad_id,squad,delivery_real_pct,discovery_real_pct,codigo_externo,iniciativa,tipo,estado,pct_avance,fecha_inicio,fecha_fin
@@ -29,6 +29,7 @@ ${SQUAD},Préstamos,${delivery},0.4,IBD900,Test init,delivery,En curso,0.5,2026-
   beforeAll(async () => {
     ({ prisma } = await import('../../lib/prisma'));
     ({ procesarImport, confirmarImport } = await import('./importService'));
+    ({ CsvDataSource } = await import('../../adapters/csv/CsvDataSource'));
     await limpiar();
   }, T);
 
@@ -38,7 +39,7 @@ ${SQUAD},Préstamos,${delivery},0.4,IBD900,Test init,delivery,En curso,0.5,2026-
   }, T);
 
   it('sin conflicto: aplica y persiste el snapshot con los calculados', async () => {
-    const r = await procesarImport(csv(0.6), 'Test');
+    const r = await procesarImport(new CsvDataSource(csv(0.6)), 'Test');
     expect(r.status).toBe('applied');
 
     const snap = await prisma.squadSnapshot.findFirst({ where: { squadId: SQUAD }, orderBy: { fechaReferencia: 'desc' } });
@@ -54,7 +55,7 @@ ${SQUAD},Préstamos,${delivery},0.4,IBD900,Test init,delivery,En curso,0.5,2026-
   it('override activo + valor distinto: pide confirmación y respeta lo manual si se rechaza', async () => {
     await prisma.squadSnapshot.updateMany({ where: { squadId: SQUAD }, data: { deliveryManualOverride: true, deliveryRealPct: 0.6 } });
 
-    const r = await procesarImport(csv(0.41), 'Test');
+    const r = await procesarImport(new CsvDataSource(csv(0.41)), 'Test');
     expect(r.status).toBe('needs_confirmation');
     expect(r.conflicts).toHaveLength(1);
 

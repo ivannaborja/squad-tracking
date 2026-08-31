@@ -14,10 +14,11 @@ export interface AHoy {
 export interface PersistedSnapshot {
   semaforo: import('../../domain/types').Semaforo;
   deliveryRealPct: number;
-  discoveryRealPct: number;
+  // Nullable: un squad solo-delivery (ej. Empresas) no tiene discovery.
+  discoveryRealPct: number | null;
   esperadoPct: number;
   deliveryDeltaPct: number;
-  discoveryDeltaPct: number;
+  discoveryDeltaPct: number | null;
   trimestre: string;
   semanaInicio: string;
   fechaReferencia: string;

@@ -41,3 +41,8 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# Exports reales de Smartsheet: datos internos, nunca se commitean. Los tests usan
+# un fixture anonimizado generado en memoria, no el archivo real.
+*.xlsx
+_inspect.mjs

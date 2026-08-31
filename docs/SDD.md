@@ -39,6 +39,13 @@ Agile Coach), editado_por`
 - **`semana_inicio`** — sólo **agrupa** a qué semana pertenece la fila (para
   comparar Q contra Q y armar el historial). No es la fecha de cálculo; esa es
   `fecha_referencia`.
+- **`discovery_real_pct` / `discovery_delta_pct` son nullable.** Un squad
+  **solo-delivery** no tiene discovery: en el Smartsheet real, Empresas no trae
+  nodo Discovery (sus hijos son `Q2`/`Q3`), así que su delivery sale del
+  `% Completo` del top-level y su discovery queda **`null`** — un hueco honesto, no
+  un `0` que fingiría una brecha. Es un caso válido, no un error. `delivery_real_pct`
+  nunca es null (todo squad tiene delivery; es lo que pinta el color). El semáforo
+  no depende de discovery, así que un discovery nulo no lo afecta.
 
 **Initiative** — una fila por iniciativa/subtarea del CSV importado; alimenta el
 gráfico de "cartera por estado" que promete `scope.md`:

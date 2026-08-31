@@ -1,6 +1,5 @@
 import { prisma } from '../../lib/prisma';
-import { CsvDataSource, type ParsedInitiative } from '../../adapters/csv/CsvDataSource';
-import type { Period } from '../../ports/DataSource';
+import type { DataSource, Period, ParsedInitiative } from '../../ports/DataSource';
 import type { Risk, SquadSnapshot } from '../../domain/types';
 import { delta } from '../../domain/delta';
 import { esperadoPct } from '../../domain/esperadoPct';
@@ -33,14 +32,19 @@ export interface DecisionAplicada {
 }
 
 type ResultadoImport =
-  | { status: 'invalid_csv' }
-  | { status: 'applied'; summary: { squads_updated: number; initiatives_upserted: number } }
+  | { status: 'invalid' }
+  | {
+      status: 'applied';
+      summary: { squads_updated: number; initiatives_upserted: number };
+      warnings: string[];
+    }
   | {
       status: 'needs_confirmation';
       import_token: string;
       expires_at: string;
       conflicts: Conflicto[];
       non_conflicting_preview: { squads_updated: number; initiatives_upserted: number };
+      warnings: string[];
     };
 
 // El import cuenta como un check-in: usa la fecha de hoy y congela los calculados.
@@ -56,18 +60,22 @@ function periodoDeHoy(editadoPor: string): Period {
   };
 }
 
-export async function procesarImport(csv: string, editadoPor: string): Promise<ResultadoImport> {
+// Recibe un DataSource ya construido (CSV plano o Smartsheet .xlsx): el import es
+// agnóstico de la fuente. El ruteo por tipo de archivo y la construcción del
+// adaptador viven en la ruta; acá sólo se lee, se detectan conflictos y se aplica.
+export async function procesarImport(source: DataSource, editadoPor: string): Promise<ResultadoImport> {
   await limpiarVencidos();
   const period = periodoDeHoy(editadoPor);
 
   let snapshots: SquadSnapshot[];
   let initiatives: ParsedInitiative[];
+  let warnings: string[];
   try {
-    const source = new CsvDataSource(csv);
     snapshots = await source.fetchSnapshot(period);
     initiatives = source.parseInitiatives(period);
+    warnings = source.warnings();
   } catch {
-    return { status: 'invalid_csv' };
+    return { status: 'invalid' };
   }
 
   const conflicts: Conflicto[] = [];
@@ -83,7 +91,7 @@ export async function procesarImport(csv: string, editadoPor: string): Promise<R
 
   if (conflicts.length === 0) {
     const { summary } = await aplicar(snapshots, initiatives, period, new Map(), editadoPor);
-    return { status: 'applied', summary };
+    return { status: 'applied', summary, warnings };
   }
 
   // Hay conflictos: NO se persiste nada. Se guarda el batch en Postgres (no en
@@ -105,6 +113,7 @@ export async function procesarImport(csv: string, editadoPor: string): Promise<R
       squads_updated: snapshots.length,
       initiatives_upserted: initiatives.length,
     },
+    warnings,
   };
 }
 
@@ -209,13 +218,15 @@ async function aplicar(
       resoluciones.set(claveDecision(s.squadId, 'discovery_real_pct'), discovery.override);
     }
 
-    const deliveryDeltaPct = delta(delivery.valor, esperado);
-    const discoveryDeltaPct = delta(discovery.valor, esperado);
+    // Delivery nunca es null: todo squad tiene delivery (es lo que pinta el color).
+    const deliveryDeltaPct = delta(delivery.valor as number, esperado);
+    const discoveryDeltaPct = discovery.valor === null ? null : delta(discovery.valor, esperado);
     const semaforo = recomputeSemaforo(deliveryDeltaPct, await risksDeSquad(s.squadId), period.fechaReferencia);
 
     const datos = {
       trimestre: period.trimestre.nombre,
-      deliveryRealPct: delivery.valor,
+      // Delivery nunca es null (todo squad tiene delivery); discovery sí puede serlo.
+      deliveryRealPct: delivery.valor as number,
       discoveryRealPct: discovery.valor,
       deliveryManualOverride: delivery.override,
       discoveryManualOverride: discovery.override,
@@ -256,12 +267,16 @@ async function aplicar(
 export function resolverCampo(
   field: 'delivery_real_pct' | 'discovery_real_pct',
   squadId: number,
-  entrante: number,
-  manual: number | undefined,
+  entrante: number | null,
+  manual: number | null | undefined,
   overrideActivo: boolean,
   decisiones: Map<string, boolean>
-): { valor: number; override: boolean; enConflicto: boolean } {
-  const enConflicto = overrideActivo && manual !== undefined && manual !== entrante;
+): { valor: number | null; override: boolean; enConflicto: boolean } {
+  // Sin valor entrante (squad solo-delivery, ej. Empresas): no hay nada que pisar
+  // ni que confirmar; se persiste el hueco (null) tal cual.
+  if (entrante === null) return { valor: null, override: false, enConflicto: false };
+
+  const enConflicto = overrideActivo && manual != null && manual !== entrante;
   if (!enConflicto) return { valor: entrante, override: overrideActivo, enConflicto: false };
 
   const acepta = decisiones.get(claveDecision(squadId, field)) ?? false;

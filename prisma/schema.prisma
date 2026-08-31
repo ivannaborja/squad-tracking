@@ -36,12 +36,14 @@ model SquadSnapshot {
   fechaReferencia         DateTime @map("fecha_referencia") @db.Date
   trimestre               String
   deliveryRealPct         Float    @map("delivery_real_pct")
-  discoveryRealPct        Float    @map("discovery_real_pct")
+  // Nullable: un squad solo-delivery (ej. Empresas, sin nodo Discovery en
+  // Smartsheet) no tiene discovery. Null honesto, no un 0 que fingiría brecha.
+  discoveryRealPct        Float?   @map("discovery_real_pct")
   deliveryManualOverride  Boolean  @default(false) @map("delivery_manual_override")
   discoveryManualOverride Boolean  @default(false) @map("discovery_manual_override")
   esperadoPct             Float    @map("esperado_pct")
   deliveryDeltaPct        Float    @map("delivery_delta_pct")
-  discoveryDeltaPct       Float    @map("discovery_delta_pct")
+  discoveryDeltaPct       Float?   @map("discovery_delta_pct")
   semaforo                String
   frasePronostico         String?  @map("frase_pronostico")
   editadoPor              String   @map("editado_por")
