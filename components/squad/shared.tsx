@@ -54,9 +54,3 @@ export function ListaSimple({ items, vacio }: { items: string[]; vacio: string }
 export function Vacio({ texto }: { texto: string }) {
   return <p style={{ fontSize: 14, color: C.gray400, fontStyle: 'italic', margin: 0 }}>{texto}</p>;
 }
-
-export function agruparPorEstado(initiatives: { estado: string }[]): { estado: string; cantidad: number }[] {
-  const mapa = new Map<string, number>();
-  for (const i of initiatives) mapa.set(i.estado, (mapa.get(i.estado) ?? 0) + 1);
-  return Array.from(mapa, ([estado, cantidad]) => ({ estado, cantidad }));
-}

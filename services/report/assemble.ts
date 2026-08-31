@@ -5,7 +5,6 @@ import type { Risk, Semaforo } from '../../domain/types';
 import type { Trimestre } from './quarters';
 import type {
   AHoy,
-  ActionPlanItem,
   Collections,
   NeedItem,
   PersistedSnapshot,
@@ -72,9 +71,8 @@ export function assembleSquadReportView(input: {
   // acumulado, distinto de collections.unplannedIntake (los de la semana de esta
   // squad, para la sección del pre-informe).
   unplannedTrimestre: UnplannedIntakeItem[];
-  actionPlans: ActionPlanItem[];
 }): SquadReportView {
-  const { squadId, squadNombre, snapshot, date, trimestre, collections, unplannedTrimestre, actionPlans } =
+  const { squadId, squadNombre, snapshot, date, trimestre, collections, unplannedTrimestre } =
     input;
 
   const snapshotView: SnapshotView = snapshot
@@ -121,7 +119,6 @@ export function assembleSquadReportView(input: {
     ),
     kpiNoPlanificadas: kpiNoPlanificadas(unplannedTrimestre),
     collections,
-    actionPlans,
   };
 }
 

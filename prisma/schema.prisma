@@ -169,16 +169,3 @@ model ImportStaging {
 
   @@map("import_staging")
 }
-
-// De portafolio, no de squad: sin squad_id (fuente real pág. 3).
-model ActionPlan {
-  id           Int      @id @default(autoincrement())
-  descripcion  String
-  dueno        String
-  plazo        String
-  estado       String
-  semanaInicio DateTime @map("semana_inicio") @db.Date
-  resuelto     Boolean  @default(false)
-
-  @@map("action_plan")
-}

@@ -3,7 +3,6 @@ import type { Risk, Semaforo } from '../../domain/types';
 import { resolverTrimestre, trimestreDeFecha } from './quarters';
 import { assembleCompact, assembleSquadReportView, recomputeSemaforo } from './assemble';
 import type {
-  ActionPlanItem,
   Collections,
   PersistedSnapshot,
   SquadReportView,
@@ -65,7 +64,6 @@ export async function getSquadReportView(
     initiatives,
     unplannedIntake,
     unplannedTrimestre,
-    actionPlans,
   ] = await Promise.all([
     prisma.risk.findMany({ where: { squads: { some: { squadId } } }, include: { squads: true } }),
     prisma.need.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
@@ -81,8 +79,6 @@ export async function getSquadReportView(
     prisma.unplannedIntake.findMany({
       where: { semanaInicio: { gte: new Date(tri.inicio), lte: new Date(tri.fin) } },
     }),
-    // Sólo los planes en curso, no el historial ya resuelto.
-    prisma.actionPlan.findMany({ where: { resuelto: false } }),
   ]);
 
   const collections: Collections = {
@@ -148,15 +144,6 @@ export async function getSquadReportView(
       descripcion: u.descripcion,
       semanaInicio: iso(u.semanaInicio),
     })),
-    actionPlans: actionPlans.map((p) => ({
-      id: p.id,
-      descripcion: p.descripcion,
-      dueno: p.dueno,
-      plazo: p.plazo,
-      estado: p.estado,
-      semanaInicio: iso(p.semanaInicio),
-      resuelto: p.resuelto,
-    })),
   });
 }
 
@@ -164,21 +151,6 @@ export async function getSquadReportView(
 // un riesgo puede reasignarse a cualquiera de ellos (RiskSquad).
 export async function getSquads(): Promise<{ id: number; nombre: string }[]> {
   return prisma.squad.findMany({ orderBy: { id: 'asc' }, select: { id: true, nombre: true } });
-}
-
-// Los planes de acción de portafolio (sin squad) para el comparativo. En curso y
-// resueltos, ordenados por semana: la sección de escritura vive sólo en `/`.
-export async function getActionPlans(): Promise<ActionPlanItem[]> {
-  const planes = await prisma.actionPlan.findMany({ orderBy: { semanaInicio: 'desc' } });
-  return planes.map((p) => ({
-    id: p.id,
-    descripcion: p.descripcion,
-    dueno: p.dueno,
-    plazo: p.plazo,
-    estado: p.estado,
-    semanaInicio: iso(p.semanaInicio),
-    resuelto: p.resuelto,
-  }));
 }
 
 export async function getOverview(date: string): Promise<SquadReportViewCompact[]> {

@@ -125,7 +125,6 @@ describe('assembleSquadReportView', () => {
       trimestre: Q3,
       collections: vacias,
       unplannedTrimestre: [],
-      actionPlans: [],
     });
     expect(v.snapshot.semaforo).toBe('verde');
     expect(v.datosDe).toBe('2026-08-14');
@@ -141,7 +140,6 @@ describe('assembleSquadReportView', () => {
       trimestre: Q3,
       collections: vacias,
       unplannedTrimestre: [],
-      actionPlans: [],
     });
     expect(v.snapshot.semaforo).toBeNull();
     expect(v.datosDe).toBeNull();
@@ -168,7 +166,6 @@ describe('assembleSquadReportView', () => {
       trimestre: Q3,
       collections: semanal,
       unplannedTrimestre: trimestral,
-      actionPlans: [],
     });
     expect(v.kpiNoPlanificadas).toBe(3);
     expect(v.collections.unplannedIntake).toHaveLength(1);
