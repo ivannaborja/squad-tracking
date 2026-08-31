@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { getOverview } from '../services/report/reportService';
 import { C, FONT } from '../lib/ds-tokens';
 import { Kpi, Mono } from '../components/ds';
@@ -27,6 +28,25 @@ export default async function Comparativo() {
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Link
+            href="/informe"
+            className="no-print"
+            style={{
+              height: 40,
+              display: 'inline-flex',
+              alignItems: 'center',
+              padding: '0 16px',
+              borderRadius: 8,
+              background: C.navy700,
+              color: C.white,
+              fontFamily: FONT.head,
+              fontSize: 14,
+              fontWeight: 600,
+              textDecoration: 'none',
+            }}
+          >
+            Informe
+          </Link>
           <ImportPanel />
           <ExportButton targetId="reporte" nombre={`comparativo-${date}`} />
         </div>
