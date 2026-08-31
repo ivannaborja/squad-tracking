@@ -67,7 +67,7 @@ CSV ni un JSON de Smartsheet; sólo ve un modelo interno propio.**
   esperado_pct, delivery_delta_pct, discovery_delta_pct, semaforo,
   frase_pronostico, editado_por`. **Sin colecciones embebidas**: `Risk`, `Need`,
   `Achievement`, `UpcomingDelivery` son **tablas separadas**, no arrays adentro
-  del snapshot. Y las reglas: esperado = días hábiles transcurridos / totales, y
+  del snapshot. Y las reglas: esperado = días calendario transcurridos / totales, y
   el semáforo con su precedencia (riesgo de ingresos → rojo; Delivery negativo sin
   ese riesgo → amarillo; Discovery no cambia color). Puras, sin saber de dónde
   vino el dato ni cómo se pinta. Se testean solas.
