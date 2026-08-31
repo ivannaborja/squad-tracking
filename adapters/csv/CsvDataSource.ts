@@ -18,11 +18,6 @@ export interface PersistClient {
     }): Promise<unknown>;
   };
   initiative: {
-    upsert(args: {
-      where: { squadId_codigoExterno: { squadId: number; codigoExterno: string } };
-      create: Record<string, unknown>;
-      update: Record<string, unknown>;
-    }): Promise<unknown>;
     create(args: { data: Record<string, unknown> }): Promise<unknown>;
   };
 }
@@ -77,13 +72,19 @@ export class CsvDataSource implements DataSource {
   parseInitiatives(period: Period): ParsedInitiative[] {
     return this.rows.map((r) => ({
       squadId: num(r.squad_id),
+      // El CSV plano no trae el identificador de fila de Smartsheet: sin él, cada
+      // import inserta filas nuevas (el .xlsx real sí lo trae y hace upsert).
+      smartsheetRowId: null,
       codigoExterno: r.codigo_externo?.trim() ? r.codigo_externo.trim() : null,
+      portafolio: false,
       nombre: r.iniciativa,
       tipo: r.tipo,
+      etapa: null,
       estado: r.estado,
       pctAvance: num(r.pct_avance),
       fechaInicio: r.fecha_inicio,
       fechaFin: r.fecha_fin,
+      fechaFinReal: null,
       semanaInicio: period.semanaInicio,
     }));
   }
@@ -104,22 +105,9 @@ export class CsvDataSource implements DataSource {
     }
 
     for (const i of this.parseInitiatives(period)) {
-      // Sin codigo_externo no hay clave natural entre semanas: se inserta fila
-      // nueva cada import (limitación conocida del SDD). Con código, upsert.
-      if (i.codigoExterno === null) {
-        await client.initiative.create({ data: initiativeRow(i) });
-      } else {
-        await client.initiative.upsert({
-          where: {
-            squadId_codigoExterno: {
-              squadId: i.squadId,
-              codigoExterno: i.codigoExterno,
-            },
-          },
-          create: initiativeRow(i),
-          update: initiativeRow(i),
-        });
-      }
+      // El CSV no trae identificador de fila de Smartsheet, así que no hay clave
+      // natural para el upsert entre semanas: se inserta fila nueva cada import.
+      await client.initiative.create({ data: initiativeRow(i) });
     }
   }
 
@@ -160,13 +148,17 @@ function snapshotRow(s: SquadSnapshot): Record<string, unknown> {
 function initiativeRow(i: ParsedInitiative): Record<string, unknown> {
   return {
     squadId: i.squadId,
+    smartsheetRowId: i.smartsheetRowId,
     codigoExterno: i.codigoExterno,
+    portafolio: i.portafolio,
     nombre: i.nombre,
     tipo: i.tipo,
+    etapa: i.etapa,
     estado: i.estado,
     pctAvance: i.pctAvance,
-    fechaInicio: new Date(i.fechaInicio),
-    fechaFin: new Date(i.fechaFin),
+    fechaInicio: i.fechaInicio ? new Date(i.fechaInicio) : null,
+    fechaFin: i.fechaFin ? new Date(i.fechaFin) : null,
+    fechaFinReal: i.fechaFinReal ? new Date(i.fechaFinReal) : null,
     semanaInicio: new Date(i.semanaInicio),
   };
 }

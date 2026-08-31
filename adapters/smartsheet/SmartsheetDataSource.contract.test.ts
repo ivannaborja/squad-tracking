@@ -6,33 +6,46 @@ import type { SquadSnapshot } from '../../domain/types';
 
 // Fixture ANONIMIZADO generado en memoria: reproduce la forma del export real de
 // Smartsheet (árbol por Padre/Id, nodos Delivery/Discovery, caso solo-delivery,
-// filas con código, el molde "Plantilla squads") sin ningún dato interno real.
-// Columnas 1-based confirmadas contra el archivo real: A=codigo, E=nombre,
-// M=%completo, V=id fila, X=padre.
+// filas con código, el molde "Plantilla squads", iniciativas de portafolio a
+// distinta profundidad) sin ningún dato interno real. Columnas 1-based
+// confirmadas contra el archivo real: A=codigo, C=portafolio, E=nombre,
+// H=fecha inicio, I=fecha fin, L=etapa, M=%completo, R=fecha fin real,
+// T=estado, V=id fila, X=padre.
 interface Fila {
   codigo?: string;
+  portafolio?: boolean;
   nombre?: string;
+  fechaInicio?: string;
+  fechaFin?: string;
+  etapa?: string;
   completo?: number | null;
+  fechaFinReal?: string;
+  estado?: string;
   id?: string;
   padre?: string;
 }
 const FILAS: Fila[] = [
   { codigo: 'Codigo Etica', nombre: 'Nombre', id: 'Identificador de la fila', padre: 'Padre' }, // header
-  // Molde: se ignora entero, incluida su fila con código.
+  // Molde: se ignora entero. Incluso una fila de portafolio bajo el molde se
+  // omite (su raíz no matchea ningún squad del sistema).
   { nombre: 'Plantilla squads', id: 'T1' },
   { nombre: 'Delivery', id: 'T2', padre: 'T1' },
-  { codigo: 'TPL001', nombre: 'Molde con código', completo: 1, id: 'T2a', padre: 'T2' },
+  { codigo: 'TPL001', nombre: 'Molde con código', completo: 1, portafolio: true, etapa: 'Despliegue', estado: 'Completo', id: 'T2a', padre: 'T2' },
   // Alfa: split normal, pero con naming sucio (doble espacio, minúsculas, sin guion)
   // para ejercer el match tolerante por substring en hijos directos.
   { nombre: 'Alfa', completo: 0.77, id: 'S1' },
   { nombre: 'delivery  - ALFA', completo: 0.8, id: 'S1D', padre: 'S1' },
   { nombre: 'Discovery Alfa', completo: 0.5, id: 'S1V', padre: 'S1' },
-  { codigo: 'IBD200', nombre: 'Init Alfa', completo: 0.9, id: 'S1I', padre: 'S1D' },
+  // Iniciativa de portafolio bajo Delivery → tipo delivery. Despliegue + 100% +
+  // Completo = un pase a producción.
+  { codigo: 'IBD200', nombre: 'Init Alfa', portafolio: true, etapa: 'Despliegue', completo: 1, estado: 'Completo', fechaInicio: '2026-07-01', fechaFin: '2026-08-20', id: 'S1I', padre: 'S1D' },
+  // Iniciativa de portafolio bajo Discovery → tipo discovery.
+  { codigo: 'IBD202', nombre: 'Disco Alfa', portafolio: true, etapa: 'Pruebas', completo: 0.4, estado: 'En progreso', id: 'S1DV', padre: 'S1V' },
   // Bravo: solo-delivery (hijos Q2, sin nodo Delivery/Discovery) → delivery del
-  // top-level, discovery null.
+  // top-level, discovery null. Su iniciativa de portafolio igual es tipo delivery.
   { nombre: 'Bravo', completo: 0.7, id: 'S2' },
   { nombre: 'Q2', completo: 1, id: 'S2Q', padre: 'S2' },
-  { codigo: 'IBD201', nombre: 'Init Bravo', completo: 0.6, id: 'S2I', padre: 'S2Q' },
+  { codigo: 'IBD201', nombre: 'Init Bravo', portafolio: true, etapa: 'Desarrollo', completo: 0.6, estado: 'En progreso', id: 'S2I', padre: 'S2Q' },
   // Delta: en la planilla pero sin correspondencia en el sistema → warning, se omite.
   { nombre: 'Delta', completo: 0.5, id: 'S3' },
   { nombre: 'Delivery - Delta', completo: 0.5, id: 'S3D', padre: 'S3' },
@@ -52,7 +65,7 @@ const PERIOD: Period = {
   editadoPor: 'Equipo de Agile Coach',
 };
 
-const COL = { codigo: 1, nombre: 5, completo: 13, filaId: 22, padre: 24 };
+const COL = { codigo: 1, portafolio: 3, nombre: 5, fechaInicio: 8, fechaFin: 9, etapa: 12, completo: 13, fechaFinReal: 18, estado: 20, filaId: 22, padre: 24 };
 
 async function fixtureBuffer(): Promise<Uint8Array> {
   const wb = new ExcelJS.Workbook();
@@ -60,8 +73,14 @@ async function fixtureBuffer(): Promise<Uint8Array> {
   FILAS.forEach((f, i) => {
     const row = ws.getRow(i + 1);
     if (f.codigo !== undefined) row.getCell(COL.codigo).value = f.codigo;
+    if (f.portafolio !== undefined) row.getCell(COL.portafolio).value = f.portafolio;
     if (f.nombre !== undefined) row.getCell(COL.nombre).value = f.nombre;
+    if (f.fechaInicio !== undefined) row.getCell(COL.fechaInicio).value = f.fechaInicio;
+    if (f.fechaFin !== undefined) row.getCell(COL.fechaFin).value = f.fechaFin;
+    if (f.etapa !== undefined) row.getCell(COL.etapa).value = f.etapa;
     if (f.completo !== undefined && f.completo !== null) row.getCell(COL.completo).value = f.completo;
+    if (f.fechaFinReal !== undefined) row.getCell(COL.fechaFinReal).value = f.fechaFinReal;
+    if (f.estado !== undefined) row.getCell(COL.estado).value = f.estado;
     if (f.id !== undefined) row.getCell(COL.filaId).value = f.id;
     if (f.padre !== undefined) row.getCell(COL.padre).value = f.padre;
   });
@@ -129,12 +148,36 @@ describe('SmartsheetDataSource — contrato DataSource', () => {
     const w = source.warnings();
     expect(w.some((x) => x.includes('Delta'))).toBe(true); // sin correspondencia
     expect(w.some((x) => x.includes('Gamma'))).toBe(true); // sin fila en la planilla
-    // Iniciativas diferidas: cuenta IBD200 + IBD201, excluye TPL001 (bajo el molde).
-    expect(w.some((x) => /Iniciativas no importadas.*2 filas/.test(x))).toBe(true);
+    // 4 filas de portafolio (IBD200, IBD202, IBD201, TPL001); 3 importadas y la
+    // del molde omitida (su raíz no matchea un squad del sistema).
+    expect(w.some((x) => /Iniciativas de portafolio detectadas: 4 .*importadas: 3.*omitidas sin squad: 1/.test(x))).toBe(true);
   });
 
-  it('no escribe iniciativas en v1 (diferidas)', () => {
-    expect(source.parseInitiatives()).toEqual([]);
+  it('importa sólo las filas de portafolio, identificadas por el id de fila (col V)', () => {
+    const inits = source.parseInitiatives(PERIOD);
+    expect(inits.map((i) => i.smartsheetRowId).sort()).toEqual(['S1DV', 'S1I', 'S2I']);
+    // TPL001 (bajo el molde) no entra.
+    expect(inits.some((i) => i.codigoExterno === 'TPL001')).toBe(false);
+    // La semana la pone el período del import.
+    expect(inits.every((i) => i.semanaInicio === PERIOD.semanaInicio && i.portafolio)).toBe(true);
+  });
+
+  it('resuelve squad por la raíz y tipo por la rama (delivery/discovery)', () => {
+    const inits = source.parseInitiatives(PERIOD);
+    const alfaDelivery = inits.find((i) => i.smartsheetRowId === 'S1I')!;
+    expect(alfaDelivery.squadId).toBe(1);
+    expect(alfaDelivery.tipo).toBe('delivery'); // cuelga de "delivery - ALFA"
+    const alfaDiscovery = inits.find((i) => i.smartsheetRowId === 'S1DV')!;
+    expect(alfaDiscovery.tipo).toBe('discovery'); // cuelga de "Discovery Alfa"
+    const bravo = inits.find((i) => i.smartsheetRowId === 'S2I')!;
+    expect(bravo.squadId).toBe(2);
+    expect(bravo.tipo).toBe('delivery'); // solo-delivery, sin rama Discovery
+  });
+
+  it('los pases a producción (Despliegue + 100% + Completo) quedan identificables', () => {
+    const inits = source.parseInitiatives(PERIOD);
+    const pases = inits.filter((i) => i.etapa === 'Despliegue' && i.pctAvance === 1 && i.estado === 'Completo');
+    expect(pases.map((i) => i.codigoExterno)).toEqual(['IBD200']);
   });
 
   it('normalizar: trim + sin acentos + minúsculas + espacios colapsados', () => {

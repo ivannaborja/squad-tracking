@@ -288,22 +288,27 @@ export function resolverCampo(
 async function upsertInitiative(i: ParsedInitiative): Promise<void> {
   const data = {
     squadId: i.squadId,
+    smartsheetRowId: i.smartsheetRowId,
     codigoExterno: i.codigoExterno,
+    portafolio: i.portafolio,
     nombre: i.nombre,
     tipo: i.tipo,
+    etapa: i.etapa,
     estado: i.estado,
     pctAvance: i.pctAvance,
-    fechaInicio: new Date(i.fechaInicio),
-    fechaFin: new Date(i.fechaFin),
+    fechaInicio: i.fechaInicio ? new Date(i.fechaInicio) : null,
+    fechaFin: i.fechaFin ? new Date(i.fechaFin) : null,
+    fechaFinReal: i.fechaFinReal ? new Date(i.fechaFinReal) : null,
     semanaInicio: new Date(i.semanaInicio),
   };
-  // Sin codigo_externo no hay clave natural entre semanas: se inserta nueva.
-  if (i.codigoExterno === null) {
+  // La identidad es la fila de Smartsheet: con ella se hace upsert (misma
+  // iniciativa entre semanas). Sin ella (CSV) no hay clave natural → inserta nueva.
+  if (i.smartsheetRowId === null) {
     await prisma.initiative.create({ data });
     return;
   }
   await prisma.initiative.upsert({
-    where: { squadId_codigoExterno: { squadId: i.squadId, codigoExterno: i.codigoExterno } },
+    where: { squadId_smartsheetRowId: { squadId: i.squadId, smartsheetRowId: i.smartsheetRowId } },
     create: data,
     update: data,
   });

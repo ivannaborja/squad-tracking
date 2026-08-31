@@ -59,21 +59,36 @@ model SquadSnapshot {
 model Initiative {
   id            Int      @id @default(autoincrement())
   squadId       Int      @map("squad_id")
+  // Identidad estable de la fila en Smartsheet (columna V "Identificador de la
+  // fila"): único por fila y no se reusa. Es la clave del upsert, no el código
+  // IBD, que se repite entre filas. Nullable porque el adaptador CSV no lo trae.
+  smartsheetRowId String? @map("smartsheet_row_id")
+  // El código IBD: informativo, no identidad (se repite en la planilla real).
   codigoExterno String?  @map("codigo_externo")
+  // Marca la iniciativa como parte del portafolio (columna C). Sólo importamos
+  // las que la tienen; el resto del árbol son tareas/subtareas.
+  portafolio    Boolean  @default(false)
   nombre        String
   tipo          String
+  // Etapa del pipeline (columna L): "Despliegue", "Desarrollo", … Nullable: hay
+  // iniciativas de portafolio sin etapa cargada.
+  etapa         String?
   estado        String
-  pctAvance     Float    @map("pct_avance")
-  fechaInicio   DateTime @map("fecha_inicio") @db.Date
-  fechaFin      DateTime @map("fecha_fin") @db.Date
+  // Nullables por huecos reales en la planilla: no todas las filas de portafolio
+  // traen % o fechas cargados.
+  pctAvance     Float?   @map("pct_avance")
+  fechaInicio   DateTime? @map("fecha_inicio") @db.Date
+  // Fecha de Finalización planificada (columna I).
+  fechaFin      DateTime? @map("fecha_fin") @db.Date
+  // Fecha Fin Real (columna R): se completa cuando la iniciativa cierra.
+  fechaFinReal  DateTime? @map("fecha_fin_real") @db.Date
   semanaInicio  DateTime @map("semana_inicio") @db.Date
 
   squad Squad @relation(fields: [squadId], references: [id])
 
-  // Clave natural del upsert del import. codigo_externo es nullable: en Postgres
-  // los NULL no colisionan, así una fila sin código se inserta nueva cada import
-  // (limitación conocida del SDD), y una con código matchea la de semanas previas.
-  @@unique([squadId, codigoExterno])
+  // Clave natural del upsert del import: la fila de Smartsheet. Nullable no
+  // colisiona en Postgres, así una fila del CSV (sin rowId) se inserta nueva.
+  @@unique([squadId, smartsheetRowId])
   @@map("initiative")
 }
 
