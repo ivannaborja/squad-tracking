@@ -21,9 +21,9 @@ explícitamente automatizar el cálculo diario del % esperado —"el número cam
 día a día"— como una de las cosas que este módulo debe resolver.
 
 ### El cálculo, exacto
-- **Esperado (nivel trimestre):** días hábiles transcurridos / días hábiles
-  totales del Q. Igual para los 8 squads. Ej. 14-08 → día 33 de 66 del Q3 = 50%
-  (verificado: semana del 04-08 = 36%, semana del 11-08 = 48%, todos por igual).
+- **Esperado (nivel trimestre):** días calendario inclusivos transcurridos / días
+  calendario totales del Q. Igual para los 8 squads. Ej. 28-08 → día 59 de 92 del
+  Q3 = 64% (el número de la planilla maestra de Dai, con la que compara los squads).
   Hoy el equipo de Agile Coach lo calcula a mano cada día. Es cuenta, no
   juicio → 100% automatizable.
 - **Esperado (nivel tarea/iniciativa):** ya es fórmula viva en Smartsheet
@@ -134,7 +134,7 @@ primer adaptador; "Smartsheet API" es el segundo, y entra sin reescribir la capa
 de informe cuando IT confirme acceso.
 
 #### Entra en v1
-- Cálculo automático del **esperado**: agregado de trimestre (días hábiles
+- Cálculo automático del **esperado**: agregado de trimestre (días calendario
   transcurridos / totales) y lectura del esperado por tarea que ya trae el
   export de Smartsheet.
 - **Dos reales por squad** —Delivery comprometido y Discovery comprometido—
@@ -264,8 +264,8 @@ en el mismo lugar y en el momento de la reunión.
 ## Glosario
 
 - **Squad** — equipo de trabajo con avance propio; hay 8 en seguimiento.
-- **% avance esperado (trimestre)** — días hábiles transcurridos / días hábiles
-  totales del Q. Igual para los 8 squads. Se calcula solo con la fecha de hoy.
+- **% avance esperado (trimestre)** — días calendario transcurridos / días
+  calendario totales del Q. Igual para los 8 squads. Se calcula solo con la fecha de hoy.
 - **% avance esperado (tarea)** — fórmula viva en Smartsheet:
   `SI hoy < inicio → 0; si no → MIN(100%, (hoy − inicio)/(fin − inicio))`.
 - **Delivery comprometido** — una de las dos categorías de avance real del

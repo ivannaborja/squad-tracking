@@ -9,19 +9,18 @@ export function esperadoPct(
   if (hoy < inicio) return 0;
   if (hoy >= fin) return 1;
 
-  const diasHabilesTranscurridos = contarDiasHabiles(inicio, hoy);
-  const diasHabilesTotales = contarDiasHabiles(inicio, fin);
+  // Días CALENDARIO inclusivos, como los cuenta Dai en su planilla maestra: del
+  // 1/7 al 28/8 son 59 días (ambos extremos cuentan), y el Q3 entero son 92
+  // (1/7 al 30/9). 59/92 = 64%, que es el esperado con el que ella reporta.
+  const transcurridos = diasCalendarioInclusive(inicio, hoy);
+  const totales = diasCalendarioInclusive(inicio, fin);
 
-  return Math.min(1, diasHabilesTranscurridos / diasHabilesTotales);
+  return Math.min(1, transcurridos / totales);
 }
 
-function contarDiasHabiles(desde: Date, hasta: Date): number {
-  let contador = 0;
-  const actual = new Date(desde);
-  while (actual < hasta) {
-    const diaSemana = actual.getDay();
-    if (diaSemana !== 0 && diaSemana !== 6) contador++;
-    actual.setDate(actual.getDate() + 1);
-  }
-  return contador;
+// Cuenta los días de calendario de `desde` a `hasta` con ambos extremos incluidos.
+// UTC para que el cambio de horario de verano no corra la cuenta un día.
+function diasCalendarioInclusive(desde: Date, hasta: Date): number {
+  const MS_POR_DIA = 24 * 60 * 60 * 1000;
+  return Math.round((hasta.getTime() - desde.getTime()) / MS_POR_DIA) + 1;
 }
