@@ -126,7 +126,7 @@ se recalculan solos; `domain/` es puro"):
   edición de un dato de entrada (o de un riesgo vinculado). Nunca se escriben a
   mano ni se editan en la UI.
 - **`esperado_pct` se congela contra `fecha_referencia`**: depende del día del
-  check-in (días hábiles transcurridos / totales del Q). Congelarlo es lo que
+  check-in (días calendario transcurridos / totales del Q). Congelarlo es lo que
   preserva el historial real de lo que se mostró esa semana — no se recalcula con
   la fecha de hoy al mirar una semana vieja. Mientras el equipo de Agile Coach
   sólo mira (sin guardar), el esperado se calcula en vivo contra hoy; recién al
@@ -239,22 +239,26 @@ type Semaforo = 'rojo' | 'amarillo' | 'verde';
 
 ### 1. `esperadoPct(hoy, trimestre) → number`
 
-El **% de avance esperado del trimestre**: días hábiles transcurridos / días
-hábiles totales del Q. Igual para los 8 squads (no depende del squad). Se calcula
-con la **fecha de referencia** de ese snapshot (el día del check-in, cualquiera
-sea — no hay jueves fijo).
+El **% de avance esperado del trimestre**: días calendario transcurridos / días
+calendario totales del Q, ambos contados con los dos extremos incluidos. Igual
+para los 8 squads (no depende del squad). Se calcula con la **fecha de
+referencia** de ese snapshot (el día del check-in, cualquiera sea — no hay jueves
+fijo).
 
 ```
 esperadoPct(hoy, { inicio, fin }):
-  si hoy <= inicio          → 0
+  si hoy < inicio           → 0
   si hoy >= fin             → 1
-  si no                     → habilesEntre(inicio, hoy) / habilesEntre(inicio, fin)
+  si no                     → calendarioInclusive(inicio, hoy) / calendarioInclusive(inicio, fin)
+
+calendarioInclusive(a, b) = días de calendario de a a b, ambos incluidos
 ```
 
-- **Días hábiles**, no calendario: lunes-viernes, sin fines de semana. (Feriados:
-  ver "Pendiente" abajo — hoy no se descuentan.)
-- **Rango cerrado y saturado**: antes del inicio da 0; en o después del cierre da
-  1. Nunca devuelve <0 ni >1.
+- **Días calendario, no hábiles**: es como lo cuenta la planilla maestra —"del 1
+  de julio al 28 de agosto = 59 días = 64%" (Q3 = 92 días, 1/7 al 30/9). El día
+  de inicio ya cuenta como 1 de 92 (inclusivo), no 0.
+- **Rango saturado en el cierre**: antes del inicio da 0; en o después del cierre
+  da 1. Nunca devuelve <0 ni >1.
 - **Puro respecto de la fecha que se le pasa**, no de `Date.now()`. Quien arma el
   snapshot le pasa la `fecha_referencia` de ese check-in; así `esperado_pct` queda
   **congelado por semana** y una semana vieja no se recalcula con la fecha de hoy.
@@ -263,8 +267,8 @@ esperadoPct(hoy, { inicio, fin }):
 
 | `hoy` | `inicio` | `fin` | esperado | por qué |
 |---|---|---|---|---|
-| día 33 hábil | día 0 | día 66 hábil | `0.50` | mitad del Q (referencia del PRD) |
-| = `inicio` | inicio | fin | `0` | arranca el Q |
+| 28/8 | 1/7 | 30/9 | `59/92 ≈ 0.64` | el número de la planilla de Dai |
+| = `inicio` | inicio | fin | `1/92 ≈ 0.011` | el primer día ya cuenta (inclusivo) |
 | < `inicio` | inicio | fin | `0` | Q no empezó |
 | = `fin` | inicio | fin | `1` | Q cerrado |
 | > `fin` | inicio | fin | `1` | saturado, no pasa de 1 |
@@ -394,10 +398,10 @@ avisoRojoSinNeed(squad, semana):
 
 ### Pendiente (no bloquea la v1)
 
-- **Feriados en días hábiles**: hoy `esperadoPct` sólo excluye fines de semana.
-  Si el esperado debe descontar feriados del país, entra una lista de feriados
-  como parámetro (se mantiene puro: se le pasa, no se lee de ningún lado). Marcar
-  con el equipo de Agile Coach si el desalineo importa a esta escala.
+- **Feriados / fines de semana**: `esperadoPct` cuenta días calendario corridos
+  (así reporta Dai), sin descontar fines de semana ni feriados. Si algún día se
+  quisiera una rampa sólo-hábiles o con feriados, entra una lista como parámetro
+  (se mantiene puro: se le pasa, no se lee de ningún lado). Hoy no hace falta.
 - **`categoriaImpacto` más allá de `'ingresos'`**: si el PRD #7 confirma otro
   disparador de rojo, se suma a `ingresosActivo` sin migrar datos (campo
   categórico). Hasta entonces, `'ingresos'` es el único.
