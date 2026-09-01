@@ -134,6 +134,8 @@ export function assembleCompact(input: {
     squadId,
     squadNombre,
     semaforo: snapshot?.semaforo ?? null,
+    deliveryRealPct: snapshot?.deliveryRealPct ?? null,
+    discoveryRealPct: snapshot?.discoveryRealPct ?? null,
     deliveryDeltaPct: snapshot?.deliveryDeltaPct ?? null,
     discoveryDeltaPct: snapshot?.discoveryDeltaPct ?? null,
     frasePronostico: snapshot?.frasePronostico ?? null,

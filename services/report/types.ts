@@ -123,6 +123,9 @@ export interface SquadReportViewCompact {
   squadId: number;
   squadNombre: string;
   semaforo: Semaforo | null;
+  // % comprometido (avance real persistido) del squad, para mostrarlo junto al delta.
+  deliveryRealPct: number | null;
+  discoveryRealPct: number | null;
   deliveryDeltaPct: number | null;
   discoveryDeltaPct: number | null;
   frasePronostico: string | null;
