@@ -1,12 +1,14 @@
 import Link from 'next/link';
 import { C, FONT, fmtPct, fmtPp, deltaColor } from '../../lib/ds-tokens';
-import { Card, SemaforoBadge, Mono } from '../ds';
+import { Card, Mono } from '../ds';
 import type { InformeKpis, SemaforoRow, SimpleItem, EntregaItem, NeedItem, BloqueoItem } from '../../services/report/informe';
 
 const brecha = (real: number | null, esperado: number): number | null => (real === null ? null : real - esperado);
 
 // La fila de 4 KPIs de la cabecera del informe (general o individual, misma forma).
-export function KpiRow({ kpis }: { kpis: InformeKpis }) {
+// pasesPlanificadosSlot: si se pasa, ocupa la 4ta celda (card editable inline) en
+// vez del KpiInforme estático; sin él, se mantiene el comportamiento anterior.
+export function KpiRow({ kpis, pasesPlanificadosSlot }: { kpis: InformeKpis; pasesPlanificadosSlot?: React.ReactNode }) {
   const { deliveryPromedio, discoveryPromedio, esperadoPct, discoveryDeltaSemanaAnterior, pasesProduccion, pasesPlanificados } = kpis;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, margin: '20px 0 8px' }}>
@@ -41,11 +43,9 @@ export function KpiRow({ kpis }: { kpis: InformeKpis }) {
         value={`${pasesProduccion.hechos}/${pasesProduccion.total}`}
         sub="En producción / total del Q"
       />
-      <KpiInforme
-        label="Pases planificados"
-        value={pasesPlanificados ?? '—'}
-        sub="Esta semana (carga manual)"
-      />
+      {pasesPlanificadosSlot ?? (
+        <KpiInforme label="Pases planificados" value={pasesPlanificados ?? '—'} sub="Esta semana" />
+      )}
     </div>
   );
 }
@@ -65,11 +65,11 @@ function KpiInforme({ label, value, sub }: { label: string; value: React.ReactNo
 // Semáforo por squad del informe general: una fila por squad, enlazada a su
 // informe individual.
 export function SemaforoTabla({ rows }: { rows: SemaforoRow[] }) {
-  const grid = 'minmax(160px, 2fr) 120px 1fr 1fr';
+  const grid = 'minmax(200px, 3fr) 1fr 1fr';
   return (
     <div style={{ border: `1px solid ${C.gray200}`, borderRadius: 8, overflowX: 'auto', background: C.white }}>
-      <div style={{ display: 'grid', gridTemplateColumns: grid, gap: 16, padding: '12px 20px', background: C.navy100, minWidth: 620 }}>
-        {['Squad', 'Estado', 'Delivery', 'Discovery'].map((h) => (
+      <div style={{ display: 'grid', gridTemplateColumns: grid, gap: 16, padding: '12px 20px', background: C.navy100, minWidth: 460 }}>
+        {['Squad', 'Delivery', 'Discovery'].map((h) => (
           <span key={h} style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.navy900 }}>{h}</span>
         ))}
       </div>
@@ -77,10 +77,30 @@ export function SemaforoTabla({ rows }: { rows: SemaforoRow[] }) {
         <Link
           key={r.squadId}
           href={`/informe/squad/${r.squadId}`}
-          style={{ textDecoration: 'none', color: 'inherit', display: 'grid', gridTemplateColumns: grid, gap: 16, padding: '12px 20px', borderTop: `1px solid ${C.gray200}`, alignItems: 'center', minWidth: 620 }}
+          style={{ textDecoration: 'none', color: 'inherit', display: 'grid', gridTemplateColumns: grid, gap: 16, padding: '12px 20px', borderTop: `1px solid ${C.gray200}`, alignItems: 'center', minWidth: 460 }}
         >
-          <span style={{ fontSize: 14, fontWeight: 600, color: C.navy700 }}>{r.squadNombre}</span>
-          <SemaforoBadge semaforo={r.semaforo} />
+          {/* Nombre con dot de color del semáforo + brecha de delivery inline (el
+              color ya no va como columna Estado aparte). */}
+          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <span style={{ display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: C.navy700 }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  background:
+                    r.semaforo === 'verde' ? C.verde : r.semaforo === 'amarillo' ? C.amarillo : r.semaforo === 'rojo' ? C.rojo : C.gray300,
+                  marginRight: 8,
+                  flexShrink: 0,
+                }}
+              />
+              {r.squadNombre}
+            </span>
+            <span style={{ fontSize: 11, color: deltaColor(r.deliveryDeltaPct) }}>
+              Avance vs. esperado: {fmtPp(r.deliveryDeltaPct)}
+            </span>
+          </span>
           <Mono style={{ fontSize: 14, color: deltaColor(r.deliveryDeltaPct) }}>{fmtPp(r.deliveryDeltaPct)}</Mono>
           <Mono style={{ fontSize: 14, color: deltaColor(r.discoveryDeltaPct) }}>{fmtPp(r.discoveryDeltaPct)}</Mono>
         </Link>
