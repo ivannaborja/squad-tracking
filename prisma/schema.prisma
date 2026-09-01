@@ -218,3 +218,20 @@ model InformeSquadSemanal {
   @@unique([squadId, semanaInicio])
   @@map("informe_squad_semanal")
 }
+
+// Bitácora de cambios de la narrativa (Bloque E). Cada fila es una versión previa
+// de un campo, guardada al pisarlo. Se conservan hasta 5 por (tabla, registro, campo);
+// las más viejas se borran. `tabla` es el nombre físico (informe_semanal /
+// informe_squad_semanal) y `campo` la clave snake_case del body de la API.
+model NarrativeHistory {
+  id            Int      @id @default(autoincrement())
+  tabla         String
+  registroId    Int      @map("registro_id")
+  campo         String
+  valorAnterior String?  @map("valor_anterior")
+  valorNuevo    String?  @map("valor_nuevo")
+  cambiadoEn    DateTime @default(now()) @map("cambiado_en") @db.Timestamptz(6)
+
+  @@index([tabla, registroId, campo], map: "narrative_history_registro_idx")
+  @@map("narrative_history")
+}

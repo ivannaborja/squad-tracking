@@ -18,16 +18,22 @@ export interface Campo {
 // Editor de las secciones narrativas del informe (general o squad). En lectura
 // muestra lo que escribió Dai; con el modo edición activo, inputs + guardar. El
 // endpoint upsertea por semana, así que siempre manda la semana del informe.
+// En lectura, cada campo ofrece "Ver historial" (últimas versiones previas) si el
+// registro ya fue guardado alguna vez (historiaRegistroId no es null).
 export function NarrativaEditor({
   endpoint,
   semanaInicio,
   campos,
   onDirtyChange,
+  historiaTabla,
+  historiaRegistroId,
 }: {
   endpoint: string;
   semanaInicio: string;
   campos: Campo[];
   onDirtyChange?: (dirty: boolean) => void;
+  historiaTabla: string;
+  historiaRegistroId: number | null;
 }) {
   const { editing } = useEditMode();
   const { setDirty } = useNavGuard();
@@ -66,6 +72,9 @@ export function NarrativaEditor({
             ) : (
               <p style={{ margin: 0, fontSize: 14, color: C.gray400, fontStyle: 'italic' }}>Sin cargar.</p>
             )}
+            {historiaRegistroId !== null && (
+              <HistorialCampo tabla={historiaTabla} registroId={historiaRegistroId} campo={c.key} />
+            )}
           </div>
         ))}
       </div>
@@ -97,6 +106,74 @@ export function NarrativaEditor({
         </Button>
       </div>
       <ErrorText error={error} />
+    </div>
+  );
+}
+
+interface Entrada {
+  id: number;
+  valorAnterior: string | null;
+  valorNuevo: string | null;
+  cambiadoEn: string;
+}
+
+const fmtFecha = (iso: string) =>
+  new Date(iso).toLocaleString('es', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+// Toggle "Ver historial" de un campo: al abrir, trae las últimas versiones previas
+// del endpoint de historia. Se pide sólo la primera vez que se abre.
+function HistorialCampo({ tabla, registroId, campo }: { tabla: string; registroId: number; campo: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [entradas, setEntradas] = useState<Entrada[] | null>(null);
+  const [cargando, setCargando] = useState(false);
+
+  async function toggle() {
+    if (abierto) {
+      setAbierto(false);
+      return;
+    }
+    setAbierto(true);
+    if (entradas === null) {
+      setCargando(true);
+      const qs = new URLSearchParams({ tabla, id: String(registroId), campo });
+      const res = await fetch(`/api/informe/historia?${qs}`).catch(() => null);
+      const data = res && res.ok ? ((await res.json().catch(() => [])) as Entrada[]) : [];
+      setEntradas(data);
+      setCargando(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <button
+        type="button"
+        onClick={toggle}
+        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, color: C.navy700, textDecoration: 'underline' }}
+      >
+        {abierto ? 'Ocultar' : 'Ver historial'}
+      </button>
+      {abierto && (
+        <div style={{ marginTop: 6, paddingLeft: 10, borderLeft: `2px solid ${C.gray200}` }}>
+          {cargando ? (
+            <p style={{ margin: 0, fontSize: 12, color: C.gray400 }}>Cargando…</p>
+          ) : !entradas || entradas.length === 0 ? (
+            <p style={{ margin: 0, fontSize: 12, color: C.gray400, fontStyle: 'italic' }}>Sin cambios anteriores.</p>
+          ) : (
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {entradas.map((e) => (
+                <li key={e.id} style={{ fontSize: 12, color: C.gray600 }}>
+                  <span style={{ color: C.gray400 }}>{fmtFecha(e.cambiadoEn)}</span>{' · '}
+                  {e.valorAnterior && e.valorAnterior.trim() ? (
+                    <span style={{ whiteSpace: 'pre-wrap' }}>{e.valorAnterior}</span>
+                  ) : (
+                    <span style={{ fontStyle: 'italic', color: C.gray400 }}>(vacío)</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }
