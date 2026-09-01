@@ -1,11 +1,10 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import { C, FONT, deltaColor, fmtPct, fmtPp } from '../../lib/ds-tokens';
+import { C, deltaColor, fmtPct, fmtPp } from '../../lib/ds-tokens';
 import { Card, Kpi, Mono } from '../ds';
 import { KpiDelta } from './shared';
 import { useEditMode } from '../write/EditMode';
-import { useEditor } from '../write/EditorContext';
 import { useApiWrite } from '../write/useApiWrite';
 import { Button, ErrorText, PctField, TextAreaField } from '../write/controls';
 import type { AHoy, SnapshotView } from '../../services/report/types';
@@ -74,7 +73,6 @@ function CheckinEditor({
   kpiNoPlanificadas: number;
   aHoyCard: ReactNode;
 }) {
-  const { editadoPor } = useEditor();
   const { pending, error, mutate } = useApiWrite();
 
   const [delivery, setDelivery] = useState<number | null>(snapshot.deliveryRealPct);
@@ -87,7 +85,7 @@ function CheckinEditor({
   const hayCambios = deliveryCambio || discoveryCambio || fraseCambio;
 
   async function guardar() {
-    const json: Record<string, unknown> = { editado_por: editadoPor };
+    const json: Record<string, unknown> = { editado_por: 'sistema' };
     // Sólo los reales que cambiaron: mandarlos activa su override (Flujo 3).
     if (deliveryCambio) json.delivery_real_pct = delivery;
     if (discoveryCambio) json.discovery_real_pct = discovery;
@@ -114,9 +112,6 @@ function CheckinEditor({
         <Button onClick={guardar} disabled={pending || !hayCambios}>
           {pending ? 'Guardando…' : 'Confirmar check-in'}
         </Button>
-        <span style={{ fontSize: 12, color: C.gray400, fontFamily: FONT.body }}>
-          como {editadoPor}
-        </span>
       </div>
       <ErrorText error={error} />
     </Card>

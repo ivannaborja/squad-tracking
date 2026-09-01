@@ -1,10 +1,10 @@
-import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getInformeSquad } from '../../../../services/report/informe';
 import { hoyISO, inicioDeSemana } from '../../../../lib/dates';
 import { C, FONT } from '../../../../lib/ds-tokens';
 import { Card, SemaforoBadge, Mono, stripeColor } from '../../../../components/ds';
 import { ExportButton } from '../../../../components/ExportButton';
+import { NavGuardProvider, BackLink } from '../../../../components/informe/NavGuard';
 import { EditModeProvider, EditModeToggle } from '../../../../components/write/EditMode';
 import { KpiRow, Bloque, ListaInforme, BloqueosSection, entregaTexto, needTexto, simpleTexto } from '../../../../components/informe/pieces';
 import { TrendChart } from '../../../../components/informe/TrendChart';
@@ -24,9 +24,8 @@ export default async function InformeSquad({ params }: { params: Promise<{ squad
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px' }}>
-      <Link href="/informe" className="no-print" style={{ fontSize: 14, fontWeight: 700, color: C.navy700, textDecoration: 'none' }}>
-        ← Informe de portafolio
-      </Link>
+      <NavGuardProvider>
+      <BackLink href="/informe">← Informe de portafolio</BackLink>
 
       <EditModeProvider>
         <div id="reporte" style={{ marginTop: 16 }}>
@@ -88,6 +87,7 @@ export default async function InformeSquad({ params }: { params: Promise<{ squad
           </Bloque>
         </div>
       </EditModeProvider>
+      </NavGuardProvider>
     </div>
   );
 }

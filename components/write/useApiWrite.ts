@@ -20,8 +20,8 @@ interface MutateOpts {
 // Envoltorio único de escritura contra /api/*: parsea el sobre de error, refresca
 // la página al éxito (las páginas son Server Components → traen color/datos
 // recomputados de la base) y expone pending/error para la UI. No inyecta
-// editado_por: quien lo necesita (check-in, import) lo pasa en `json` desde
-// useEditor(), porque el resto de las entidades no tienen ese campo.
+// editado_por: quien lo necesita (check-in, import) lo pasa en `json`, porque el
+// resto de las entidades no tienen ese campo.
 export function useApiWrite() {
   const router = useRouter();
   const [pending, setPending] = useState(false);
