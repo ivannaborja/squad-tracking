@@ -65,6 +65,8 @@ export default async function InformeSquad({ params }: { params: Promise<{ squad
             <NarrativaEditor
               endpoint={`/api/informe/squad/${squadId}`}
               semanaInicio={semana}
+              historiaTabla="informe_squad_semanal"
+              historiaRegistroId={view.informeId}
               campos={[
                 { key: 'novedades', label: 'Novedades', tipo: 'texto', value: view.narrativa.novedades ?? '' },
                 { key: 'pases_produccion', label: 'Pases a producción', tipo: 'texto', value: view.narrativa.pasesProduccion ?? '' },

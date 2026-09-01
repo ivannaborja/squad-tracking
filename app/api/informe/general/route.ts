@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { errorJson } from '../../../../lib/http';
+import { diffCampos, registrarHistoria } from '../../../../lib/narrativeHistory';
+
+// Clave snake_case del body → columna Prisma. Se usa para registrar el historial.
+const CAMPOS = { novedades: 'novedades', lectura: 'lectura', pases_planificados: 'pasesPlanificados' };
 
 // Narrativa del informe general (portafolio) de una semana. La escribe Dai:
 // novedades, lectura y el número manual de pases planificados (KPI 4). Upsert por
@@ -13,11 +17,13 @@ export async function PATCH(request: NextRequest) {
   }
 
   const data = camposPresentes(body);
+  const before = await prisma.informeSemanal.findUnique({ where: { semanaInicio: new Date(semana) } });
   const row = await prisma.informeSemanal.upsert({
     where: { semanaInicio: new Date(semana) },
     create: { semanaInicio: new Date(semana), ...data },
     update: data,
   });
+  await registrarHistoria('informe_semanal', row.id, diffCampos(before, row, body, CAMPOS));
   return NextResponse.json(row, { status: 200 });
 }
 

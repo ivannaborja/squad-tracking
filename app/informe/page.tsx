@@ -53,6 +53,8 @@ export default async function InformeGeneral() {
             <NarrativaEditor
               endpoint="/api/informe/general"
               semanaInicio={semana}
+              historiaTabla="informe_semanal"
+              historiaRegistroId={view.informeId}
               campos={[
                 { key: 'novedades', label: 'Novedades de la semana', tipo: 'texto', value: view.novedades ?? '' },
                 { key: 'lectura', label: 'Lectura', tipo: 'texto', value: view.lectura ?? '' },
