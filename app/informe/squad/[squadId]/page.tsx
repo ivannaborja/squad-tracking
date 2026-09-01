@@ -9,6 +9,7 @@ import { EditModeProvider, EditModeToggle } from '../../../../components/write/E
 import { KpiRow, Bloque, ListaInforme, BloqueosSection, entregaTexto, needTexto, simpleTexto } from '../../../../components/informe/pieces';
 import { TrendChart } from '../../../../components/informe/TrendChart';
 import { NarrativaEditor } from '../../../../components/informe/NarrativaEditor';
+import { PasesPlanificadosCard } from '../../../../components/informe/PasesPlanificadosCard';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,7 +49,12 @@ export default async function InformeSquad({ params }: { params: Promise<{ squad
             </div>
           </Card>
 
-          <KpiRow kpis={view.kpis} />
+          <KpiRow
+            kpis={view.kpis}
+            pasesPlanificadosSlot={
+              <PasesPlanificadosCard endpoint={`/api/informe/squad/${squadId}`} semanaInicio={semana} value={view.kpis.pasesPlanificados} />
+            }
+          />
 
           {/* Bloqueos: aparte de los riesgos y prominentes, arriba de todo. */}
           <Bloque title="Bloqueos">
@@ -71,7 +77,7 @@ export default async function InformeSquad({ params }: { params: Promise<{ squad
                 { key: 'novedades', label: 'Novedades', tipo: 'texto', value: view.narrativa.novedades ?? '' },
                 { key: 'pases_produccion', label: 'Pases a producción', tipo: 'texto', value: view.narrativa.pasesProduccion ?? '' },
                 { key: 'despriorizaciones', label: 'Despriorizaciones', tipo: 'texto', value: view.narrativa.despriorizaciones ?? '' },
-                { key: 'pases_planificados', label: 'Pases planificados esta semana (KPI)', tipo: 'numero', value: view.narrativa.pasesPlanificados?.toString() ?? '' },
+                { key: 'pases_planificados', label: 'Pases planificados esta semana', tipo: 'numero', value: view.narrativa.pasesPlanificados?.toString() ?? '' },
               ]}
             />
           </Bloque>
