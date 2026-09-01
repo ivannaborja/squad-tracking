@@ -229,11 +229,15 @@ export function NarrativaEditor({
               {c.label}
             </div>
             {c.value.trim() ? (
-              c.tipo === 'texto' ? (
-                <TextoLectura value={c.value} />
-              ) : (
-                <p style={{ margin: 0, fontSize: 14, color: C.gray900, whiteSpace: 'pre-wrap' }}>{c.value}</p>
-              )
+              // Tarjeta de fondo suave: deja claro que es texto escrito por Dai, no
+              // parte del label/título de arriba.
+              <div style={{ background: C.gray050, border: `1px solid ${C.gray200}`, borderRadius: 8, padding: '10px 14px' }}>
+                {c.tipo === 'texto' ? (
+                  <TextoLectura value={c.value} />
+                ) : (
+                  <p style={{ margin: 0, fontSize: 14, color: C.gray900, whiteSpace: 'pre-wrap' }}>{c.value}</p>
+                )}
+              </div>
             ) : (
               <p style={{ margin: 0, fontSize: 14, color: C.gray400, fontStyle: 'italic' }}>Sin cargar.</p>
             )}
