@@ -78,7 +78,6 @@ export default async function InformeGeneral() {
               historiaRegistroId={view.informeId}
               campos={[
                 { key: 'novedades', label: 'Novedades de la semana', tipo: 'texto', value: view.novedades ?? '' },
-                { key: 'pases_planificados', label: 'Pases planificados esta semana', tipo: 'numero', value: view.kpis.pasesPlanificados?.toString() ?? '' },
               ]}
             />
           </Bloque>

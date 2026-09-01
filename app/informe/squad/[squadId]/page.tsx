@@ -77,7 +77,6 @@ export default async function InformeSquad({ params }: { params: Promise<{ squad
                 { key: 'novedades', label: 'Novedades', tipo: 'texto', value: view.narrativa.novedades ?? '' },
                 { key: 'pases_produccion', label: 'Pases a producción', tipo: 'texto', value: view.narrativa.pasesProduccion ?? '' },
                 { key: 'despriorizaciones', label: 'Despriorizaciones', tipo: 'texto', value: view.narrativa.despriorizaciones ?? '' },
-                { key: 'pases_planificados', label: 'Pases planificados esta semana', tipo: 'numero', value: view.narrativa.pasesPlanificados?.toString() ?? '' },
               ]}
             />
           </Bloque>
