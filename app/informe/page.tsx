@@ -1,7 +1,7 @@
 import { getInformeGeneral } from '../../services/report/informe';
 import { hoyISO, inicioDeSemana, semanaRangoLabel } from '../../lib/dates';
 import { trimestreDeFecha } from '../../services/report/quarters';
-import { C, FONT } from '../../lib/ds-tokens';
+import { C, FONT, fmtPct } from '../../lib/ds-tokens';
 import { Card } from '../../components/ds';
 import { ExportButton } from '../../components/ExportButton';
 import { NavGuardProvider, BackLink } from '../../components/informe/NavGuard';
@@ -51,7 +51,7 @@ export default async function InformeGeneral() {
             }
           />
 
-          <Bloque title="Semáforo por squad">
+          <Bloque title={`Semáforo por squad — avance vs. esperado ${fmtPct(view.kpis.esperadoPct)}`}>
             <SemaforoTabla rows={view.semaforos} />
           </Bloque>
 

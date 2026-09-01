@@ -79,27 +79,22 @@ export function SemaforoTabla({ rows }: { rows: SemaforoRow[] }) {
           href={`/informe/squad/${r.squadId}`}
           style={{ textDecoration: 'none', color: 'inherit', display: 'grid', gridTemplateColumns: grid, gap: 16, padding: '12px 20px', borderTop: `1px solid ${C.gray200}`, alignItems: 'center', minWidth: 460 }}
         >
-          {/* Nombre con dot de color del semáforo + brecha de delivery inline (el
-              color ya no va como columna Estado aparte). */}
-          <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <span style={{ display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: C.navy700 }}>
-              <span
-                style={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  background:
-                    r.semaforo === 'verde' ? C.verde : r.semaforo === 'amarillo' ? C.amarillo : r.semaforo === 'rojo' ? C.rojo : C.gray300,
-                  marginRight: 8,
-                  flexShrink: 0,
-                }}
-              />
-              {r.squadNombre}
-            </span>
-            <span style={{ fontSize: 11, color: deltaColor(r.deliveryDeltaPct) }}>
-              Avance vs. esperado: {fmtPp(r.deliveryDeltaPct)}
-            </span>
+          {/* Nombre con dot de color del semáforo. El "avance vs. esperado" ya no va
+              por fila: aparece una sola vez en el título del bloque. */}
+          <span style={{ display: 'flex', alignItems: 'center', fontSize: 14, fontWeight: 600, color: C.navy700 }}>
+            <span
+              style={{
+                display: 'inline-block',
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background:
+                  r.semaforo === 'verde' ? C.verde : r.semaforo === 'amarillo' ? C.amarillo : r.semaforo === 'rojo' ? C.rojo : C.gray300,
+                marginRight: 8,
+                flexShrink: 0,
+              }}
+            />
+            {r.squadNombre}
           </span>
           <Mono style={{ fontSize: 14, color: deltaColor(r.deliveryDeltaPct) }}>{fmtPp(r.deliveryDeltaPct)}</Mono>
           <Mono style={{ fontSize: 14, color: deltaColor(r.discoveryDeltaPct) }}>{fmtPp(r.discoveryDeltaPct)}</Mono>
