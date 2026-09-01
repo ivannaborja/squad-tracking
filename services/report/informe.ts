@@ -49,6 +49,9 @@ export interface SemaforoRow {
 
 export interface InformeGeneralView {
   semanaInicio: string | null;
+  // id de la fila InformeSemanal de la semana (clave del historial de narrativa).
+  // null si esa semana todavía no se guardó nunca.
+  informeId: number | null;
   kpis: InformeKpis;
   semaforos: SemaforoRow[];
   trend: TrendPoint[];
@@ -78,6 +81,8 @@ export interface InformeSquadView {
   squadId: number;
   squadNombre: string;
   semanaInicio: string | null;
+  // id de la fila InformeSquadSemanal (clave del historial). null si nunca se guardó.
+  informeId: number | null;
   semaforo: Semaforo | null;
   datosDe: string | null;
   kpis: InformeKpis;
@@ -150,6 +155,7 @@ export async function getInformeGeneral(date: string): Promise<InformeGeneralVie
 
   return {
     semanaInicio,
+    informeId: informe?.id ?? null,
     kpis: {
       deliveryPromedio: ultima?.deliveryPct ?? null,
       discoveryPromedio: ultima?.discoveryPct ?? null,
@@ -213,6 +219,7 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
     squadId,
     squadNombre: squad.nombre,
     semanaInicio,
+    informeId: informe?.id ?? null,
     semaforo: ultimoSnap ? (ultimoSnap.semaforo as Semaforo) : null,
     datosDe: ultimoSnap?.fechaReferencia ?? null,
     kpis: {
