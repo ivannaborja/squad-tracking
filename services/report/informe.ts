@@ -43,6 +43,9 @@ export interface SemaforoRow {
   squadId: number;
   squadNombre: string;
   semaforo: Semaforo | null;
+  // % comprometido (avance real) del squad + su delta vs. esperado.
+  deliveryRealPct: number | null;
+  discoveryRealPct: number | null;
   deliveryDeltaPct: number | null;
   discoveryDeltaPct: number | null;
 }
@@ -168,6 +171,8 @@ export async function getInformeGeneral(date: string): Promise<InformeGeneralVie
       squadId: s.squadId,
       squadNombre: s.squadNombre,
       semaforo: s.semaforo,
+      deliveryRealPct: s.deliveryRealPct,
+      discoveryRealPct: s.discoveryRealPct,
       deliveryDeltaPct: s.deliveryDeltaPct,
       discoveryDeltaPct: s.discoveryDeltaPct,
     })),

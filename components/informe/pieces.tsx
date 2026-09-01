@@ -65,11 +65,11 @@ function KpiInforme({ label, value, sub }: { label: string; value: React.ReactNo
 // Semáforo por squad del informe general: una fila por squad, enlazada a su
 // informe individual.
 export function SemaforoTabla({ rows }: { rows: SemaforoRow[] }) {
-  const grid = 'minmax(200px, 3fr) 1fr 1fr';
+  const grid = 'minmax(160px, 2.2fr) 1fr 1fr';
   return (
     <div style={{ border: `1px solid ${C.gray200}`, borderRadius: 8, overflowX: 'auto', background: C.white }}>
-      <div style={{ display: 'grid', gridTemplateColumns: grid, gap: 16, padding: '12px 20px', background: C.navy100, minWidth: 460 }}>
-        {['Squad', 'Delivery', 'Discovery'].map((h) => (
+      <div style={{ display: 'grid', gridTemplateColumns: grid, gap: 16, padding: '12px 20px', background: C.navy100, minWidth: 560 }}>
+        {['Squad', 'Delivery comprometido', 'Discovery comprometido'].map((h) => (
           <span key={h} style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.navy900 }}>{h}</span>
         ))}
       </div>
@@ -77,7 +77,7 @@ export function SemaforoTabla({ rows }: { rows: SemaforoRow[] }) {
         <Link
           key={r.squadId}
           href={`/informe/squad/${r.squadId}`}
-          style={{ textDecoration: 'none', color: 'inherit', display: 'grid', gridTemplateColumns: grid, gap: 16, padding: '12px 20px', borderTop: `1px solid ${C.gray200}`, alignItems: 'center', minWidth: 460 }}
+          style={{ textDecoration: 'none', color: 'inherit', display: 'grid', gridTemplateColumns: grid, gap: 16, padding: '12px 20px', borderTop: `1px solid ${C.gray200}`, alignItems: 'center', minWidth: 560 }}
         >
           {/* Nombre con dot de color del semáforo. El "avance vs. esperado" ya no va
               por fila: aparece una sola vez en el título del bloque. */}
@@ -96,11 +96,32 @@ export function SemaforoTabla({ rows }: { rows: SemaforoRow[] }) {
             />
             {r.squadNombre}
           </span>
-          <Mono style={{ fontSize: 14, color: deltaColor(r.deliveryDeltaPct) }}>{fmtPp(r.deliveryDeltaPct)}</Mono>
-          <Mono style={{ fontSize: 14, color: deltaColor(r.discoveryDeltaPct) }}>{fmtPp(r.discoveryDeltaPct)}</Mono>
+          <ComprometidoCell real={r.deliveryRealPct} delta={r.deliveryDeltaPct} />
+          <ComprometidoCell real={r.discoveryRealPct} delta={r.discoveryDeltaPct} />
         </Link>
       ))}
     </div>
+  );
+}
+
+// Celda "comprometido": el % de avance real del squad y, debajo, la brecha vs. el
+// esperado con flecha — verde si llegó o superó (delta ≥ 0), rojo si quedó abajo.
+// Discovery puede no aplicar (ej. Empresa Actual, sin discovery): se dice explícito.
+function ComprometidoCell({ real, delta }: { real: number | null; delta: number | null }) {
+  if (real === null) {
+    return <span style={{ fontSize: 13, color: C.gray400 }}>No aplica</span>;
+  }
+  const positivo = (delta ?? 0) >= 0;
+  const pp = delta === null ? null : Math.round(Math.abs(delta) * 100);
+  return (
+    <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Mono style={{ fontSize: 15, fontWeight: 600, color: C.navy900 }}>{fmtPct(real)}</Mono>
+      {pp !== null && (
+        <span style={{ fontSize: 12, fontWeight: 600, color: positivo ? C.verdeFg : C.rojoFg }}>
+          {positivo ? '▲ +' : '▼ '}{pp} pp
+        </span>
+      )}
+    </span>
   );
 }
 
