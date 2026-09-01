@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { C, FONT } from '../../lib/ds-tokens';
 import { useEditMode } from '../write/EditMode';
 import { useNavGuard } from './NavGuard';
@@ -23,13 +23,77 @@ const textareaStyle = {
   resize: 'vertical' as const,
 };
 
-// Toggle de viñetas sobre el texto: si alguna línea ya arranca con "• ", las quita
-// de todas; si no, antepone "• " a cada línea no vacía.
-function toggleBullets(text: string): string {
-  const lineas = text.split('\n');
-  const tieneBullets = lineas.some((l) => l.startsWith('• '));
-  if (tieneBullets) return lineas.map((l) => (l.startsWith('• ') ? l.slice(2) : l)).join('\n');
-  return lineas.map((l) => (l.trim() === '' ? l : `• ${l}`)).join('\n');
+// Campo de texto multilínea con lista viva: el botón "• Lista" pone o quita la
+// viñeta de la línea donde está el cursor, y al presionar Enter en una línea con
+// viñeta se crea otra automáticamente. Enter en una viñeta vacía sale de la lista.
+function CampoTextoEditor({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const caretPendiente = useRef<number | null>(null);
+
+  // Reposiciona el cursor tras un cambio controlado (insertar/quitar viñeta cambia
+  // el texto, y el caret hay que fijarlo a mano después del re-render).
+  useEffect(() => {
+    if (caretPendiente.current !== null && ref.current) {
+      ref.current.selectionStart = ref.current.selectionEnd = caretPendiente.current;
+      caretPendiente.current = null;
+    }
+  });
+
+  function aplicar(nuevo: string, caret: number) {
+    caretPendiente.current = caret;
+    onChange(nuevo);
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const el = ref.current;
+    if (!el) return;
+    const start = el.selectionStart;
+    const end = el.selectionEnd;
+    const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+    const lineaActual = value.slice(lineStart, start);
+    if (!lineaActual.startsWith('• ')) return; // fuera de una lista: Enter normal
+    e.preventDefault();
+    if (lineaActual.trim() === '•') {
+      // viñeta vacía → salir de la lista: borra el "• " de la línea
+      aplicar(value.slice(0, lineStart) + value.slice(start), lineStart);
+    } else {
+      // continuar la lista: salto de línea ya con viñeta
+      const ins = '\n• ';
+      aplicar(value.slice(0, start) + ins + value.slice(end), start + ins.length);
+    }
+  }
+
+  function toggleLista() {
+    const el = ref.current;
+    const pos = el ? el.selectionStart : value.length;
+    const lineStart = value.lastIndexOf('\n', pos - 1) + 1;
+    const rel = value.slice(lineStart).indexOf('\n');
+    const lineEnd = rel === -1 ? value.length : lineStart + rel;
+    const linea = value.slice(lineStart, lineEnd);
+    if (linea.startsWith('• ')) {
+      aplicar(value.slice(0, lineStart) + linea.slice(2) + value.slice(lineEnd), Math.max(lineStart, pos - 2));
+    } else {
+      aplicar(value.slice(0, lineStart) + '• ' + linea + value.slice(lineEnd), pos + 2);
+    }
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: C.gray600 }}>{label}</span>
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={toggleLista}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, color: C.navy700, textDecoration: 'underline' }}
+        >
+          • Lista
+        </button>
+      </div>
+      <textarea ref={ref} style={textareaStyle} rows={3} value={value} onChange={(e) => onChange(e.target.value)} onKeyDown={onKeyDown} />
+    </div>
+  );
 }
 
 // Render de lectura de un campo de texto: como <ul> si tiene viñetas, si no como
@@ -97,7 +161,20 @@ export function NarrativaEditor({
     baselineRef.current = baseline;
   }, [baseline]);
 
-  const dirty = editing && campos.some((c) => (form[c.key] ?? '') !== (baseline[c.key] ?? ''));
+  // Modo edición LOCAL de la sección: al entrar al modo edición global se abre; al
+  // Guardar se colapsa a lectura mostrando lo guardado (aunque el modo global siga
+  // activo), y desde la lectura se puede reabrir con "Editar".
+  const [abierto, setAbierto] = useState(false);
+  // Sincroniza "abierto" con el modo global sin efecto (ajuste en render): cuando el
+  // modo global cambia, la sección se abre/cierra acorde; entre medio manda lo local.
+  const [modoPrev, setModoPrev] = useState(editing);
+  if (modoPrev !== editing) {
+    setModoPrev(editing);
+    setAbierto(editing);
+  }
+  const enEdicion = editing && abierto;
+
+  const dirty = enEdicion && campos.some((c) => (form[c.key] ?? '') !== (baseline[c.key] ?? ''));
 
   // Sync con el server: cuando router.refresh() trae valores nuevos (tras guardar
   // acá o en otra card), el estado local los adopta en vez de quedar pegado en lo
@@ -132,9 +209,20 @@ export function NarrativaEditor({
     };
   }, [dirty, setDirty, onDirtyChange]);
 
-  if (!editing) {
+  if (!enEdicion) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {editing && (
+          <div>
+            <button
+              type="button"
+              onClick={() => setAbierto(true)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: C.navy700, textDecoration: 'underline' }}
+            >
+              Editar
+            </button>
+          </div>
+        )}
         {campos.map((c) => (
           <div key={c.key}>
             <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.gray600, marginBottom: 4 }}>
@@ -162,8 +250,12 @@ export function NarrativaEditor({
     const body: Record<string, unknown> = { semana_inicio: semanaInicio };
     for (const c of campos) body[c.key] = form[c.key];
     const ok = await mutate({ url: endpoint, method: 'PATCH', json: body });
-    // Guardado ok → lo escrito pasa a ser el nuevo baseline (ya no hay pendientes).
-    if (ok) setBaseline({ ...form });
+    // Guardado ok → lo escrito pasa a ser el nuevo baseline (ya no hay pendientes)
+    // y la sección colapsa a lectura mostrando lo guardado.
+    if (ok) {
+      setBaseline({ ...form });
+      setAbierto(false);
+    }
   }
 
   return (
@@ -174,24 +266,7 @@ export function NarrativaEditor({
             <TextField label={c.label} value={form[c.key]} onChange={(v) => setForm({ ...form, [c.key]: v })} placeholder="número" />
           </div>
         ) : (
-          <div key={c.key}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: C.gray600 }}>{c.label}</span>
-              <button
-                type="button"
-                onClick={() => setForm({ ...form, [c.key]: toggleBullets(form[c.key] ?? '') })}
-                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, color: C.navy700, textDecoration: 'underline' }}
-              >
-                • Lista
-              </button>
-            </div>
-            <textarea
-              style={textareaStyle}
-              rows={3}
-              value={form[c.key]}
-              onChange={(e) => setForm({ ...form, [c.key]: e.target.value })}
-            />
-          </div>
+          <CampoTextoEditor key={c.key} label={c.label} value={form[c.key] ?? ''} onChange={(v) => setForm({ ...form, [c.key]: v })} />
         )
       )}
       <div>
