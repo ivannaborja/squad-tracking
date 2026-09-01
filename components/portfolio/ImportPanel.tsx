@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { C, FONT, fmtPct } from '../../lib/ds-tokens';
-import { useEditor } from '../write/EditorContext';
 import { useApiWrite } from '../write/useApiWrite';
 import { Button, ErrorText, Modal } from '../write/controls';
 
@@ -39,7 +38,6 @@ const claveConflicto = (c: Conflicto) => `${c.squad_id}:${c.field}`;
 
 export function ImportPanel() {
   const router = useRouter();
-  const { editadoPor } = useEditor();
   const { pending, error, setError, mutate } = useApiWrite();
 
   const [open, setOpen] = useState(false);
@@ -70,7 +68,7 @@ export function ImportPanel() {
     if (!file) return;
     const fd = new FormData();
     fd.append('file', file);
-    fd.append('editado_por', editadoPor);
+    fd.append('editado_por', 'sistema');
     const r = await mutate<Fase1>({ url: '/api/import', method: 'POST', body: fd, refresh: false });
     if (!r) return;
     setWarnings(r.warnings ?? []);
@@ -93,7 +91,7 @@ export function ImportPanel() {
     const r = await mutate<Fase2>({
       url: `/api/import/${fase1.import_token}/confirm`,
       method: 'POST',
-      json: { decisions, editado_por: editadoPor },
+      json: { decisions, editado_por: 'sistema' },
       refresh: false,
     });
     if (r) setAplicado(r.summary);
@@ -146,7 +144,6 @@ export function ImportPanel() {
                   Cancelar
                 </Button>
               </div>
-              <span style={{ fontSize: 12, color: C.gray400 }}>Importando como {editadoPor}</span>
             </>
           )}
           <ErrorText error={error} />
@@ -251,7 +248,7 @@ function Conflictos({
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <Button onClick={onConfirmar} disabled={pending}>
-          {pending ? 'Confirmando…' : 'Confirmar import'}
+          {pending ? 'Confirmando…' : 'Confirmar'}
         </Button>
         <Button kind="danger" onClick={onDescartar} disabled={pending}>
           Descartar

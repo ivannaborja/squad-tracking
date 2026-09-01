@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { C } from '../../lib/ds-tokens';
 import { useEditMode } from '../write/EditMode';
+import { useNavGuard } from './NavGuard';
 import { useApiWrite } from '../write/useApiWrite';
 import { Button, ErrorText, TextAreaField, TextField } from '../write/controls';
 
@@ -21,16 +22,36 @@ export function NarrativaEditor({
   endpoint,
   semanaInicio,
   campos,
+  onDirtyChange,
 }: {
   endpoint: string;
   semanaInicio: string;
   campos: Campo[];
+  onDirtyChange?: (dirty: boolean) => void;
 }) {
   const { editing } = useEditMode();
+  const { setDirty } = useNavGuard();
   const { pending, error, mutate } = useApiWrite();
   const [form, setForm] = useState<Record<string, string>>(() =>
     Object.fromEntries(campos.map((c) => [c.key, c.value]))
   );
+  // Baseline de "guardado": arranca en los valores iniciales y se reafirma tras
+  // cada guardado exitoso, así el guard sabe si hay cambios pendientes reales.
+  const [baseline, setBaseline] = useState<Record<string, string>>(() =>
+    Object.fromEntries(campos.map((c) => [c.key, c.value]))
+  );
+
+  const dirty = editing && campos.some((c) => (form[c.key] ?? '') !== (baseline[c.key] ?? ''));
+
+  // Empuja el estado sucio al guard de navegación (y al callback opcional). Salir
+  // del modo edición deja dirty en false, así el back link no molesta en lectura.
+  useEffect(() => {
+    setDirty(dirty);
+    onDirtyChange?.(dirty);
+    return () => {
+      setDirty(false);
+    };
+  }, [dirty, setDirty, onDirtyChange]);
 
   if (!editing) {
     return (
@@ -54,7 +75,9 @@ export function NarrativaEditor({
   async function guardar() {
     const body: Record<string, unknown> = { semana_inicio: semanaInicio };
     for (const c of campos) body[c.key] = form[c.key];
-    await mutate({ url: endpoint, method: 'PATCH', json: body });
+    const ok = await mutate({ url: endpoint, method: 'PATCH', json: body });
+    // Guardado ok → lo escrito pasa a ser el nuevo baseline (ya no hay pendientes).
+    if (ok) setBaseline({ ...form });
   }
 
   return (

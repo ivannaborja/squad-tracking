@@ -1,9 +1,9 @@
-import Link from 'next/link';
 import { getInformeGeneral } from '../../services/report/informe';
 import { hoyISO, inicioDeSemana } from '../../lib/dates';
 import { C, FONT } from '../../lib/ds-tokens';
 import { Card } from '../../components/ds';
 import { ExportButton } from '../../components/ExportButton';
+import { NavGuardProvider, BackLink } from '../../components/informe/NavGuard';
 import { EditModeProvider, EditModeToggle } from '../../components/write/EditMode';
 import { KpiRow, SemaforoTabla, Bloque } from '../../components/informe/pieces';
 import { TrendChart } from '../../components/informe/TrendChart';
@@ -19,9 +19,8 @@ export default async function InformeGeneral() {
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
-      <Link href="/" className="no-print" style={{ fontSize: 14, fontWeight: 700, color: C.navy700, textDecoration: 'none' }}>
-        ← Comparativo
-      </Link>
+      <NavGuardProvider>
+      <BackLink href="/">← Comparativo</BackLink>
 
       <EditModeProvider>
         <div id="reporte" style={{ marginTop: 16 }}>
@@ -63,6 +62,7 @@ export default async function InformeGeneral() {
           </Bloque>
         </div>
       </EditModeProvider>
+      </NavGuardProvider>
     </div>
   );
 }
