@@ -26,7 +26,17 @@ const textareaStyle = {
 // Campo de texto multilínea con lista viva: el botón "• Lista" pone o quita la
 // viñeta de la línea donde está el cursor, y al presionar Enter en una línea con
 // viñeta se crea otra automáticamente. Enter en una viñeta vacía sale de la lista.
-function CampoTextoEditor({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+function CampoTextoEditor({
+  label,
+  value,
+  onChange,
+  ocultarLabel,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  ocultarLabel?: boolean;
+}) {
   const ref = useRef<HTMLTextAreaElement>(null);
   const caretPendiente = useRef<number | null>(null);
 
@@ -80,8 +90,8 @@ function CampoTextoEditor({ label, value, onChange }: { label: string; value: st
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: C.gray600 }}>{label}</span>
+      <div style={{ display: 'flex', justifyContent: ocultarLabel ? 'flex-end' : 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        {!ocultarLabel && <span style={{ fontSize: 12, fontWeight: 600, color: C.gray600 }}>{label}</span>}
         <button
           type="button"
           onMouseDown={(e) => e.preventDefault()}
@@ -136,6 +146,7 @@ export function NarrativaEditor({
   onDirtyChange,
   historiaTabla,
   historiaRegistroId,
+  ocultarLabel,
 }: {
   endpoint: string;
   semanaInicio: string;
@@ -143,6 +154,9 @@ export function NarrativaEditor({
   onDirtyChange?: (dirty: boolean) => void;
   historiaTabla: string;
   historiaRegistroId: number | null;
+  // Oculta el label interno del campo (para usar un título de sección externo y
+  // uniforme, ej. en la página del squad). Sólo aplica a un editor de un campo.
+  ocultarLabel?: boolean;
 }) {
   const { editing } = useEditMode();
   const { setDirty } = useNavGuard();
@@ -225,9 +239,11 @@ export function NarrativaEditor({
         )}
         {campos.map((c) => (
           <div key={c.key}>
-            <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.gray600, marginBottom: 4 }}>
-              {c.label}
-            </div>
+            {!ocultarLabel && (
+              <div style={{ fontSize: 12, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: C.gray600, marginBottom: 4 }}>
+                {c.label}
+              </div>
+            )}
             {c.value.trim() ? (
               // Tarjeta de fondo suave: deja claro que es texto escrito por Dai, no
               // parte del label/título de arriba.
@@ -270,7 +286,7 @@ export function NarrativaEditor({
             <TextField label={c.label} value={form[c.key]} onChange={(v) => setForm({ ...form, [c.key]: v })} placeholder="número" />
           </div>
         ) : (
-          <CampoTextoEditor key={c.key} label={c.label} value={form[c.key] ?? ''} onChange={(v) => setForm({ ...form, [c.key]: v })} />
+          <CampoTextoEditor key={c.key} label={c.label} value={form[c.key] ?? ''} onChange={(v) => setForm({ ...form, [c.key]: v })} ocultarLabel={ocultarLabel} />
         )
       )}
       <div>
