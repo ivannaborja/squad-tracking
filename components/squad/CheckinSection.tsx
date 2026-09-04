@@ -51,7 +51,7 @@ export function CheckinSection({
         {AHoyCard}
         {snapshot.frasePronostico && (
           <Card style={{ padding: 20, marginTop: 16 }}>
-            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.gray600 }}>Pronóstico</div>
+            <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: C.gray600 }}>Comentarios</div>
             <p style={{ margin: '8px 0 0', fontSize: 16, color: C.navy900 }}>“{snapshot.frasePronostico}”</p>
           </Card>
         )}
@@ -103,7 +103,7 @@ function CheckinEditor({
       </div>
 
       <div style={{ marginTop: 16 }}>
-        <TextAreaField label="Frase de pronóstico" value={frase} onChange={setFrase} rows={2} />
+        <TextAreaField label="Comentarios" value={frase} onChange={setFrase} rows={2} />
       </div>
 
       {aHoyCard}
