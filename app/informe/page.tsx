@@ -70,7 +70,8 @@ export default async function InformeGeneral() {
             </div>
           </Bloque>
 
-          <Bloque title="Narrativa de la semana">
+          {/* Sin título de bloque: el label del campo ya lo identifica. */}
+          <section style={{ marginTop: 28 }}>
             <NarrativaEditor
               endpoint="/api/informe/general"
               semanaInicio={semana}
@@ -80,7 +81,7 @@ export default async function InformeGeneral() {
                 { key: 'novedades', label: 'Novedades de la semana', tipo: 'texto', value: view.novedades ?? '' },
               ]}
             />
-          </Bloque>
+          </section>
         </div>
       </EditModeProvider>
       </NavGuardProvider>
