@@ -104,9 +104,10 @@ export function SemaforoTabla({ rows }: { rows: SemaforoRow[] }) {
   );
 }
 
-// Celda "comprometido": el % de avance real del squad y, debajo, la brecha vs. el
-// esperado con flecha — verde si llegó o superó (delta ≥ 0), rojo si quedó abajo.
-// Discovery puede no aplicar (ej. Empresa Actual, sin discovery): se dice explícito.
+// Celda "comprometido": el % de avance real del squad y, a la derecha, la brecha
+// vs. el esperado con flecha — verde si llegó o superó (delta ≥ 0), rojo si quedó
+// abajo. Discovery puede no aplicar (ej. Empresa Actual, sin discovery): se dice
+// explícito.
 function ComprometidoCell({ real, delta }: { real: number | null; delta: number | null }) {
   if (real === null) {
     return <span style={{ fontSize: 13, color: C.gray400 }}>No aplica</span>;
@@ -114,7 +115,7 @@ function ComprometidoCell({ real, delta }: { real: number | null; delta: number 
   const positivo = (delta ?? 0) >= 0;
   const pp = delta === null ? null : Math.round(Math.abs(delta) * 100);
   return (
-    <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <span style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap' }}>
       <Mono style={{ fontSize: 15, fontWeight: 600, color: C.navy900 }}>{fmtPct(real)}</Mono>
       {pp !== null && (
         <span style={{ fontSize: 12, fontWeight: 600, color: positivo ? C.verdeFg : C.rojoFg }}>
