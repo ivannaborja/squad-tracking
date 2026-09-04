@@ -69,7 +69,7 @@ export function BloqueosSection({
         columnas={[...columnas, 'Acciones']}
         filas={bloqueos.map((b) => [
           ...fila(b),
-          <span key="a" style={{ display: 'flex', gap: 4 }}>
+          <span key="a" style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
             <RowAction onClick={() => setForm(b)}>Editar</RowAction>
             {!b.resuelto && <RowAction onClick={() => resolver(b.id)}>Resuelto</RowAction>}
             <RowAction danger onClick={() => mutate({ url: `/api/bloqueos/${b.id}`, method: 'DELETE' })}>
