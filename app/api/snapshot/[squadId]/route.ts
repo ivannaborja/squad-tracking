@@ -7,7 +7,6 @@ import { delta } from '../../../../domain/delta';
 import { recomputeSemaforo } from '../../../../services/report/assemble';
 import { resolverTrimestre, trimestreDeFecha } from '../../../../services/report/quarters';
 import { avisoRojoSinNeed } from '../../../../services/report/assemble';
-import type { Risk } from '../../../../domain/types';
 
 const iso = (d: Date): string => d.toISOString().slice(0, 10);
 
@@ -43,14 +42,7 @@ export async function PATCH(
   const deliveryDeltaPct = delta(deliveryRealPct, esperado);
   const discoveryDeltaPct = delta(discoveryRealPct, esperado);
 
-  const risks = await prisma.risk.findMany({ where: { squads: { some: { squadId } } } });
-  const risksDominio: Risk[] = risks.map((r) => ({
-    categoriaImpacto: r.categoriaImpacto,
-    resuelto: r.resuelto,
-    semanaInicio: iso(r.semanaInicio),
-    semanaFin: iso(r.semanaFin),
-  }));
-  const semaforo = recomputeSemaforo(deliveryDeltaPct, risksDominio, fechaReferencia);
+  const semaforo = recomputeSemaforo(deliveryDeltaPct);
 
   // Editar un real a mano activa su flag de override (por campo, independiente):
   // así un reimport posterior pide confirmación antes de pisarlo (Flujo 3).

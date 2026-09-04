@@ -261,9 +261,8 @@ export class SmartsheetDataSource implements DataSource {
         esperadoPct: esperado,
         deliveryDeltaPct,
         discoveryDeltaPct,
-        // Sin riesgos en la planilla: color base con lista vacía. El write-through
-        // lo refresca si luego se vincula un riesgo de ingresos activo.
-        semaforo: calcSemaforo(deliveryDeltaPct, [], period.fechaReferencia),
+        // Color en base al delta de delivery (hoy el semáforo no depende de más).
+        semaforo: calcSemaforo(deliveryDeltaPct),
         frasePronostico: null,
         editadoPor: period.editadoPor,
       };

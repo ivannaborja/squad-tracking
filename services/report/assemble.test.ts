@@ -8,13 +8,12 @@ import {
   recomputeSemaforo,
 } from './assemble';
 import { resolverTrimestre, trimestreDeFecha } from './quarters';
-import type { Risk } from '../../domain/types';
 import type { Collections, NeedItem, PersistedSnapshot } from './types';
 
 const Q3 = resolverTrimestre('Q3-2026');
 
 const vacias: Collections = {
-  risks: [],
+  bloqueos: [],
   needs: [],
   achievements: [],
   upcomingDeliveries: [],
@@ -89,18 +88,11 @@ describe('avisoRojoSinNeed', () => {
 });
 
 describe('recomputeSemaforo (write-through)', () => {
-  const riesgoIngresos: Risk = {
-    categoriaImpacto: 'ingresos',
-    resuelto: false,
-    semanaInicio: '2026-08-10',
-    semanaFin: '2026-08-16',
-  };
-
-  it('riesgo de ingresos activo manda rojo aunque el delta sea positivo', () => {
-    expect(recomputeSemaforo(0.06, [riesgoIngresos], '2026-08-14')).toBe('rojo');
+  it('delta negativo → amarillo', () => {
+    expect(recomputeSemaforo(-0.11)).toBe('amarillo');
   });
-  it('delta negativo sin riesgo → amarillo', () => {
-    expect(recomputeSemaforo(-0.11, [], '2026-08-14')).toBe('amarillo');
+  it('delta no negativo → verde', () => {
+    expect(recomputeSemaforo(0.06)).toBe('verde');
   });
 });
 

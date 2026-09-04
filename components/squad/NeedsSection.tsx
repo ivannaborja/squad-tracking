@@ -15,7 +15,7 @@ export function NeedsSection({
 }) {
   return (
     <EditableCollection<NeedItem>
-      title="Necesitamos de ustedes"
+      title="Necesitamos de ustedes / Riesgos"
       items={needs}
       fields={[
         { key: 'descripcion', label: 'Descripción', type: 'text', apiKey: 'descripcion' },

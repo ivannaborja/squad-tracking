@@ -75,9 +75,8 @@ export interface NeedItem extends SimpleItem {
 }
 export interface BloqueoItem extends SimpleItem {
   severidad: string;
-  dueno: string;
-  accionProxima: string;
-  checkpoint: string;
+  desde: string | null;
+  hasta: string | null;
 }
 
 export interface InformeSquadView {
@@ -94,6 +93,7 @@ export interface InformeSquadView {
     novedades: string | null;
     pasesProduccion: string | null;
     despriorizaciones: string | null;
+    riesgos: string | null;
     pasesPlanificados: number | null;
   };
   proximasEntregas: EntregaItem[];
@@ -182,6 +182,30 @@ export async function getInformeGeneral(date: string): Promise<InformeGeneralVie
   };
 }
 
+// La narrativa por squad de una semana (para editarla en la página del squad).
+// null en cada campo si aún no se guardó nada esa semana; informeId es la clave del
+// historial ("Ver historial"), null si la fila todavía no existe.
+export interface NarrativaSquad {
+  informeId: number | null;
+  novedades: string | null;
+  pasesProduccion: string | null;
+  despriorizaciones: string | null;
+  riesgos: string | null;
+}
+
+export async function getNarrativaSquad(squadId: number, semanaInicio: string): Promise<NarrativaSquad> {
+  const row = await prisma.informeSquadSemanal.findUnique({
+    where: { squadId_semanaInicio: { squadId, semanaInicio: new Date(semanaInicio) } },
+  });
+  return {
+    informeId: row?.id ?? null,
+    novedades: row?.novedades ?? null,
+    pasesProduccion: row?.pasesProduccion ?? null,
+    despriorizaciones: row?.despriorizaciones ?? null,
+    riesgos: row?.riesgos ?? null,
+  };
+}
+
 export async function getInformeSquad(squadId: number, date: string): Promise<InformeSquadView | null> {
   const squad = await prisma.squad.findUnique({ where: { id: squadId } });
   if (!squad) return null;
@@ -211,10 +235,11 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
       ? prisma.unplannedIntake.findMany({ where: { squadId, semanaInicio: new Date(semanaInicio) } })
       : Promise.resolve([]),
     prisma.need.findMany({ where: { squadId, resuelto: false } }),
-    // Bloqueos: Risk.tipo='bloqueo' activos vinculados al squad (aparte de los
-    // riesgos), surfaceados prominentes en el informe.
-    prisma.risk.findMany({
-      where: { tipo: 'bloqueo', resuelto: false, squads: { some: { squadId } } },
+    // Bloqueos activos del squad, ordenados por severidad (ALTA primero), para
+    // surfacearlos prominentes en el informe.
+    prisma.bloqueo.findMany({
+      where: { resuelto: false, squads: { some: { squadId } } },
+      orderBy: { severidad: 'asc' },
     }),
   ]);
 
@@ -240,6 +265,7 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
       novedades: informe?.novedades ?? null,
       pasesProduccion: informe?.pasesProduccion ?? null,
       despriorizaciones: informe?.despriorizaciones ?? null,
+      riesgos: informe?.riesgos ?? null,
       pasesPlanificados: informe?.pasesPlanificados ?? null,
     },
     proximasEntregas: upcoming.map((u) => ({
@@ -249,13 +275,12 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
     })),
     ingresosNoPlanificados: intake.map((u) => ({ id: u.id, descripcion: u.descripcion })),
     needs: needs.map((n) => ({ id: n.id, descripcion: n.descripcion, dueno: n.dueno, resuelto: n.resuelto })),
-    bloqueos: bloqueos.map((r) => ({
-      id: r.id,
-      descripcion: r.descripcion,
-      severidad: r.severidad,
-      dueno: r.dueno,
-      accionProxima: r.accionProxima,
-      checkpoint: r.checkpoint,
+    bloqueos: bloqueos.map((b) => ({
+      id: b.id,
+      descripcion: b.descripcion,
+      severidad: b.severidad,
+      desde: b.desde ? iso(b.desde) : null,
+      hasta: b.hasta ? iso(b.hasta) : null,
     })),
   };
 }

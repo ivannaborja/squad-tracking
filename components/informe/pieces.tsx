@@ -154,8 +154,11 @@ export function ListaInforme({ items, vacio }: { items: string[]; vacio: string 
   );
 }
 
-// Bloqueos: aparte de los riesgos y prominentes (borde rojo). Reutiliza
-// Risk.tipo='bloqueo'. Si no hay, se dice explícito (es buena noticia).
+// Título-case de la severidad (viene como enum ALTA/MEDIA/BAJA).
+const sevLabel = (s: string): string => (s ? s.charAt(0) + s.slice(1).toLowerCase() : 's/d');
+
+// Bloqueos: prominentes (borde rojo), entidad propia separada de los riesgos. Si
+// no hay, se dice explícito (es buena noticia).
 export function BloqueosSection({ bloqueos }: { bloqueos: BloqueoItem[] }) {
   if (bloqueos.length === 0) {
     return <p style={{ fontSize: 14, color: C.gray600, margin: 0 }}>Sin bloqueos activos.</p>;
@@ -166,8 +169,9 @@ export function BloqueosSection({ bloqueos }: { bloqueos: BloqueoItem[] }) {
         <Card key={b.id} style={{ borderLeft: `4px solid ${C.rojo}`, padding: 16 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: C.rojoFg }}>{b.descripcion}</div>
           <div style={{ fontSize: 13, color: C.gray600, marginTop: 6 }}>
-            Severidad {b.severidad || 's/d'} · Dueño {b.dueno || 's/d'} · Próximo paso: {b.accionProxima || 's/d'}
-            {b.checkpoint ? ` · Checkpoint ${b.checkpoint}` : ''}
+            Severidad {sevLabel(b.severidad)}
+            {b.desde ? ` · Desde ${b.desde}` : ''}
+            {b.hasta ? ` · Hasta ${b.hasta}` : ''}
           </div>
         </Card>
       ))}

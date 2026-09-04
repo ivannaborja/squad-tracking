@@ -54,10 +54,8 @@ export class CsvDataSource implements DataSource {
         esperadoPct: esperado,
         deliveryDeltaPct,
         discoveryDeltaPct,
-        // El CSV no trae riesgos (se cargan a mano, Flujo 4): color base con
-        // lista vacía. El write-through lo refresca a rojo si luego se vincula
-        // un riesgo de ingresos activo.
-        semaforo: calcSemaforo(deliveryDeltaPct, [], period.fechaReferencia),
+        // Color en base al delta de delivery (hoy el semáforo no depende de más).
+        semaforo: calcSemaforo(deliveryDeltaPct),
         frasePronostico: null,
         editadoPor: period.editadoPor,
       };
