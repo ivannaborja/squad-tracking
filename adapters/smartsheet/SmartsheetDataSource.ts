@@ -52,7 +52,11 @@ interface Nodo {
 
 interface SquadReal {
   squadId: number;
-  deliveryRealPct: number;
+  // Delivery comprometido por trimestre ("q3" → 0.63): el % del nodo "Priorizado
+  // directorio - Finalizar" dentro de Delivery → Q{n}. El Q a usar lo elige
+  // fetchSnapshot según el período. Si falta ese desglose, se cae a deliveryGeneral.
+  deliveryPorQ: Record<string, number>;
+  deliveryGeneral: number;
   discoveryRealPct: number | null;
 }
 
@@ -170,14 +174,35 @@ export class SmartsheetDataSource implements DataSource {
       const deliveryNode = hijos.find((n) => /delivery/.test(normalizar(n.nombre)));
       const discoveryNode = hijos.find((n) => /discovery/.test(normalizar(n.nombre)));
 
-      // Delivery: del nodo Delivery si existe; si no (caso Empresas), del top-level.
-      const deliveryRealPct = deliveryNode ? deliveryNode.completo : raiz.completo;
-      if (deliveryRealPct === null) {
+      // Delivery general (fallback): del nodo Delivery si existe; si no (Empresas),
+      // del top-level. Es lo que se usa cuando el squad no tiene desglose por Q.
+      const deliveryGeneral = deliveryNode ? deliveryNode.completo : raiz.completo;
+      if (deliveryGeneral === null) {
         avisos.push(`No se pudo leer el % de delivery de "${raiz.nombre}": se omite el squad.`);
         continue;
       }
 
+      // Comprometido por Q: Delivery → Q{n} → "Priorizado directorio - Finalizar".
+      // Ese nodo es el delivery COMPROMETIDO de ese trimestre (no el agregado de
+      // todos los Q ni el "No planificado"). Si un Q no tiene ese nodo, se aproxima
+      // con el % del Q entero.
+      const deliveryPorQ: Record<string, number> = {};
+      if (deliveryNode) {
+        const qNodes = nodos.filter((n) => n.padre === deliveryNode.id && /^q[1-4]$/.test(normalizar(n.nombre)));
+        for (const q of qNodes) {
+          const finalizar = nodos.find(
+            (n) => n.padre === q.id && normalizar(n.nombre).includes('priorizado') && normalizar(n.nombre).includes('finalizar')
+          );
+          const val = finalizar?.completo ?? q.completo;
+          if (val !== null) deliveryPorQ[normalizar(q.nombre)] = val;
+        }
+      }
+      if (deliveryNode && Object.keys(deliveryPorQ).length === 0) {
+        avisos.push(`"${raiz.nombre}": sin desglose de delivery por Q; se usa el % general del Delivery.`);
+      }
+
       // Discovery: del nodo Discovery si existe; si no, null (solo-delivery válido).
+      // No se desglosa por Q (decisión de negocio): se usa el nodo general.
       let discoveryRealPct: number | null = null;
       if (discoveryNode) {
         discoveryRealPct = discoveryNode.completo;
@@ -186,7 +211,7 @@ export class SmartsheetDataSource implements DataSource {
         }
       }
 
-      squads.push({ squadId, deliveryRealPct, discoveryRealPct });
+      squads.push({ squadId, deliveryPorQ, deliveryGeneral, discoveryRealPct });
       matcheados.add(squadId);
     }
 
@@ -244,15 +269,21 @@ export class SmartsheetDataSource implements DataSource {
       fin: period.trimestre.fin,
     });
 
+    // "Q3-2026" → "q3": el trimestre cuyo comprometido corresponde a este import.
+    const q = normalizar(period.trimestre.nombre.split('-')[0]);
+
     return this.squads.map((s) => {
-      const deliveryDeltaPct = delta(s.deliveryRealPct, esperado);
+      // Delivery comprometido del Q en curso; si el squad no tiene ese desglose,
+      // el % general del Delivery.
+      const deliveryRealPct = s.deliveryPorQ[q] ?? s.deliveryGeneral;
+      const deliveryDeltaPct = delta(deliveryRealPct, esperado);
       const discoveryDeltaPct = s.discoveryRealPct === null ? null : delta(s.discoveryRealPct, esperado);
       return {
         squadId: s.squadId,
         semanaInicio: period.semanaInicio,
         fechaReferencia: period.fechaReferencia,
         trimestre: period.trimestre.nombre,
-        deliveryRealPct: s.deliveryRealPct,
+        deliveryRealPct,
         discoveryRealPct: s.discoveryRealPct,
         // El import no es edición manual: los overrides arrancan en false.
         deliveryManualOverride: false,
