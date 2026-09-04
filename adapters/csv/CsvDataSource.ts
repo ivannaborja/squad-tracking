@@ -83,6 +83,8 @@ export class CsvDataSource implements DataSource {
       fechaInicio: r.fecha_inicio,
       fechaFin: r.fecha_fin,
       fechaFinReal: null,
+      // El CSV plano no tiene árbol de Q: sin trimestre (no entra a pases del Q).
+      trimestre: null,
       semanaInicio: period.semanaInicio,
     }));
   }

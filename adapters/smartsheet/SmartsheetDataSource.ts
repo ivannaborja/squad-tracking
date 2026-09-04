@@ -60,8 +60,10 @@ interface SquadReal {
   discoveryRealPct: number | null;
 }
 
-// Iniciativa ya resuelta salvo la semana, que la pone el período del import.
-type PreInitiative = Omit<ParsedInitiative, 'semanaInicio'>;
+// Iniciativa ya resuelta salvo lo que depende del período del import: la semana y
+// el año del trimestre. `quarterNode` es el Q del árbol ("Q3") sin año; el año lo
+// pone parseInitiatives para armar el trimestre final ("Q3-2026").
+type PreInitiative = Omit<ParsedInitiative, 'semanaInicio' | 'trimestre'> & { quarterNode: string | null };
 
 // trim + sin acentos + minúsculas + espacios colapsados: para matchear nombres
 // que las personas cargan con capitalización y espaciado variables.
@@ -252,6 +254,8 @@ export class SmartsheetDataSource implements DataSource {
         fechaInicio: n.fechaInicio,
         fechaFin: n.fechaFin,
         fechaFinReal: n.fechaFinReal,
+        // Q ancestro en el árbol ("Q3"), para acotar los pases a producción al Q.
+        quarterNode: quarterDe(n, porId),
       });
     }
     avisos.push(
@@ -301,7 +305,13 @@ export class SmartsheetDataSource implements DataSource {
   }
 
   parseInitiatives(period: Period): ParsedInitiative[] {
-    return this.initiatives.map((i) => ({ ...i, semanaInicio: period.semanaInicio }));
+    // El año del trimestre sale del período ("Q3-2026" → "2026"); el Q, del árbol.
+    const anio = period.trimestre.nombre.split('-')[1] ?? '';
+    return this.initiatives.map(({ quarterNode, ...i }) => ({
+      ...i,
+      trimestre: quarterNode ? `${quarterNode}-${anio}` : null,
+      semanaInicio: period.semanaInicio,
+    }));
   }
 
   warnings(): string[] {
@@ -331,4 +341,18 @@ function tipoDe(nodo: Nodo, porId: Map<string, Nodo>): string {
     if (/discovery/.test(normalizar(cur.nombre))) return 'discovery';
   }
   return 'delivery';
+}
+
+// El trimestre de una iniciativa según su nodo Q ancestro ("Q3"), o null si no
+// cuelga de ningún Q (ej. algunas ramas de Discovery).
+function quarterDe(nodo: Nodo, porId: Map<string, Nodo>): string | null {
+  let cur = nodo;
+  const visto = new Set<string>();
+  while (cur.padre && porId.has(cur.padre) && !visto.has(cur.id)) {
+    visto.add(cur.id);
+    cur = porId.get(cur.padre)!;
+    const m = /^q([1-4])$/.exec(normalizar(cur.nombre));
+    if (m) return `Q${m[1]}`;
+  }
+  return null;
 }

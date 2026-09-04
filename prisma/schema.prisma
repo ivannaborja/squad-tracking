@@ -83,6 +83,10 @@ model Initiative {
   fechaFin      DateTime? @map("fecha_fin") @db.Date
   // Fecha Fin Real (columna R): se completa cuando la iniciativa cierra.
   fechaFinReal  DateTime? @map("fecha_fin_real") @db.Date
+  // Trimestre al que pertenece la iniciativa según su nodo Q ancestro en el árbol
+  // ("Q3-2026"). Es lo que acota "pases a producción" al Q en curso. Nullable: el
+  // CSV no lo trae y puede haber filas sin Q ancestro.
+  trimestre     String?
   semanaInicio  DateTime @map("semana_inicio") @db.Date
 
   squad Squad @relation(fields: [squadId], references: [id])

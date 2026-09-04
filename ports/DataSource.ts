@@ -28,6 +28,9 @@ export interface ParsedInitiative {
   fechaInicio: string | null;
   fechaFin: string | null;
   fechaFinReal: string | null;
+  // Trimestre de la iniciativa ("Q3-2026") según su nodo Q ancestro; null si no
+  // aplica (CSV, o fila sin Q ancestro).
+  trimestre: string | null;
   semanaInicio: string;
 }
 
