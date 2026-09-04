@@ -1,10 +1,3 @@
-export interface Risk {
-  categoriaImpacto: string;
-  resuelto: boolean;
-  semanaInicio: string; // formato YYYY-MM-DD
-  semanaFin: string;
-}
-
 export type Semaforo = 'rojo' | 'amarillo' | 'verde';
 
 // El modelo canónico de la fila persistida. camelCase en domain/ aunque en la

@@ -1,7 +1,7 @@
 import { esperadoPct } from '../../domain/esperadoPct';
 import { delta } from '../../domain/delta';
 import { semaforo as calcSemaforo } from '../../domain/semaforo';
-import type { Risk, Semaforo } from '../../domain/types';
+import type { Semaforo } from '../../domain/types';
 import type { Trimestre } from './quarters';
 import type {
   AHoy,
@@ -49,15 +49,10 @@ export function kpiNoPlanificadas(unplannedIntake: UnplannedIntakeItem[]): numbe
   return unplannedIntake.length;
 }
 
-// El color oficial se recomputa sólo en escrituras (write-through): confirmar un
-// check-in o crear/editar/resolver un riesgo. La regla vive en domain/; acá se la
-// llama con los riesgos ya filtrados por squad y la fecha de referencia de la fila.
-export function recomputeSemaforo(
-  deliveryDeltaPct: number,
-  risksDelSquad: Risk[],
-  fechaReferencia: string
-): Semaforo {
-  return calcSemaforo(deliveryDeltaPct, risksDelSquad, fechaReferencia);
+// El color oficial se recomputa sólo en escrituras (write-through) al confirmar un
+// check-in. La regla vive en domain/; hoy sólo depende del delta de delivery.
+export function recomputeSemaforo(deliveryDeltaPct: number): Semaforo {
+  return calcSemaforo(deliveryDeltaPct);
 }
 
 export function assembleSquadReportView(input: {

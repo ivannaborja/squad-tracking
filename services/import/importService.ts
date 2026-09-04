@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import type { DataSource, Period, ParsedInitiative } from '../../ports/DataSource';
-import type { Risk, SquadSnapshot } from '../../domain/types';
+import type { SquadSnapshot } from '../../domain/types';
 import { delta } from '../../domain/delta';
 import { esperadoPct } from '../../domain/esperadoPct';
 import { recomputeSemaforo } from '../report/assemble';
@@ -221,7 +221,7 @@ async function aplicar(
     // Delivery nunca es null: todo squad tiene delivery (es lo que pinta el color).
     const deliveryDeltaPct = delta(delivery.valor as number, esperado);
     const discoveryDeltaPct = discovery.valor === null ? null : delta(discovery.valor, esperado);
-    const semaforo = recomputeSemaforo(deliveryDeltaPct, await risksDeSquad(s.squadId), period.fechaReferencia);
+    const semaforo = recomputeSemaforo(deliveryDeltaPct);
 
     const datos = {
       trimestre: period.trimestre.nombre,
@@ -327,15 +327,6 @@ async function estadoActual(squadId: number, semanaInicio: string) {
   };
 }
 
-async function risksDeSquad(squadId: number): Promise<Risk[]> {
-  const risks = await prisma.risk.findMany({ where: { squads: { some: { squadId } } } });
-  return risks.map((r) => ({
-    categoriaImpacto: r.categoriaImpacto,
-    resuelto: r.resuelto,
-    semanaInicio: r.semanaInicio.toISOString().slice(0, 10),
-    semanaFin: r.semanaFin.toISOString().slice(0, 10),
-  }));
-}
 
 async function limpiarVencidos(): Promise<void> {
   await prisma.importStaging.deleteMany({ where: { expiresAt: { lt: new Date() } } });

@@ -29,19 +29,14 @@ export interface PersistedSnapshot {
 // Colecciones tal como las consume el pre-informe. Fechas ya en ISO string.
 // El `id` va en cada item para que la UI de escritura pueda editar/resolver/quitar
 // una fila puntual (PATCH/DELETE /api/{entidad}/{id}); las lecturas lo ignoran.
-export interface RiskItem {
+export interface BloqueoItem {
   id: number;
   descripcion: string;
-  categoriaImpacto: string;
-  severidad: string;
-  dueno: string;
-  accionProxima: string;
-  checkpoint: string;
-  tipo: string;
-  semanaInicio: string;
-  semanaFin: string;
+  severidad: string; // 'ALTA' | 'MEDIA' | 'BAJA'
+  desde: string | null;
+  hasta: string | null;
   resuelto: boolean;
-  // Todos los squads que el riesgo afecta (RiskSquad), para reasignar desde el form.
+  // Todos los squads que el bloqueo afecta (BloqueoSquad), para reasignar desde el form.
   squadIds: number[];
 }
 export interface NeedItem {
@@ -83,7 +78,7 @@ export interface UnplannedIntakeItem {
   semanaInicio: string;
 }
 export interface Collections {
-  risks: RiskItem[];
+  bloqueos: BloqueoItem[];
   needs: NeedItem[];
   achievements: AchievementItem[];
   upcomingDeliveries: UpcomingDeliveryItem[];

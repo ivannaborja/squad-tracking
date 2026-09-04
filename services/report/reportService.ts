@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma';
-import type { Risk, Semaforo } from '../../domain/types';
+import type { Semaforo } from '../../domain/types';
 import { resolverTrimestre, trimestreDeFecha } from './quarters';
 import { assembleCompact, assembleSquadReportView, recomputeSemaforo } from './assemble';
 import type {
@@ -58,7 +58,7 @@ export async function getSquadReportView(
   const tri = trimestreVigente(snapshot, date);
 
   const [
-    risks,
+    bloqueos,
     needs,
     achievements,
     upcomingDeliveries,
@@ -66,7 +66,7 @@ export async function getSquadReportView(
     unplannedIntake,
     unplannedTrimestre,
   ] = await Promise.all([
-    prisma.risk.findMany({ where: { squads: { some: { squadId } } }, include: { squads: true } }),
+    prisma.bloqueo.findMany({ where: { squads: { some: { squadId } } }, include: { squads: true } }),
     prisma.need.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
     prisma.achievement.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
     prisma.upcomingDelivery.findMany({ where: { squadId, semanaInicio: semanaFiltro(semana) } }),
@@ -83,19 +83,14 @@ export async function getSquadReportView(
   ]);
 
   const collections: Collections = {
-    risks: risks.map((r) => ({
-      id: r.id,
-      descripcion: r.descripcion,
-      categoriaImpacto: r.categoriaImpacto,
-      severidad: r.severidad,
-      dueno: r.dueno,
-      accionProxima: r.accionProxima,
-      checkpoint: r.checkpoint,
-      tipo: r.tipo,
-      semanaInicio: iso(r.semanaInicio),
-      semanaFin: iso(r.semanaFin),
-      resuelto: r.resuelto,
-      squadIds: r.squads.map((s) => s.squadId),
+    bloqueos: bloqueos.map((b) => ({
+      id: b.id,
+      descripcion: b.descripcion,
+      severidad: b.severidad,
+      desde: isoN(b.desde),
+      hasta: isoN(b.hasta),
+      resuelto: b.resuelto,
+      squadIds: b.squads.map((s) => s.squadId),
     })),
     needs: needs.map((n) => ({
       id: n.id,
@@ -189,42 +184,16 @@ export async function getHistory(squadId: number, from?: string, to?: string) {
   return rows.map(normalizar);
 }
 
-// Write-through: recomputa y REESCRIBE el color de la fila más reciente contra
-// los riesgos vinculados. Lo llaman las escrituras de check-in y de riesgos; los
-// reads nunca lo tocan. Devuelve el color nuevo, o null si el squad no tiene fila.
+// Write-through: recomputa y REESCRIBE el color de la fila más reciente. Lo llama
+// la escritura de check-in; los reads nunca lo tocan. Devuelve el color nuevo, o
+// null si el squad no tiene fila. Hoy el color sólo depende del delta de delivery.
 export async function persistRecomputedSemaforo(squadId: number): Promise<Semaforo | null> {
   const row = await ultimoSnapshot(squadId);
   if (!row) return null;
 
-  const risks = await prisma.risk.findMany({ where: { squads: { some: { squadId } } } });
-  const risksDominio: Risk[] = risks.map((r) => ({
-    categoriaImpacto: r.categoriaImpacto,
-    resuelto: r.resuelto,
-    semanaInicio: iso(r.semanaInicio),
-    semanaFin: iso(r.semanaFin),
-  }));
-
-  const color = recomputeSemaforo(row.deliveryDeltaPct, risksDominio, iso(row.fechaReferencia));
+  const color = recomputeSemaforo(row.deliveryDeltaPct);
   await prisma.squadSnapshot.update({ where: { id: row.id }, data: { semaforo: color } });
   return color;
-}
-
-// Recomputa el color de varios squads (tras crear/editar/resolver un riesgo) y
-// devuelve SÓLO los que efectivamente cambiaron, para que la vista refresque
-// esos sin recargar. El contrato (SDD) es "la lista de squads cuyo semáforo
-// cambió": filtramos acá para no depender de que el frontend descarte los demás.
-export async function recomputarSemaforoSquads(
-  squadIds: number[]
-): Promise<{ squadId: number; semaforo: Semaforo | null }[]> {
-  const resultados = [];
-  for (const squadId of squadIds) {
-    const antes = await ultimoSnapshot(squadId);
-    const semaforo = await persistRecomputedSemaforo(squadId);
-    if ((antes?.semaforo ?? null) !== semaforo) {
-      resultados.push({ squadId, semaforo });
-    }
-  }
-  return resultados;
 }
 
 // Las colecciones semanales se acotan a la semana de la fila leída; sin fila, no

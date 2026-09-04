@@ -20,7 +20,7 @@ model Squad {
 
   snapshots          SquadSnapshot[]
   initiatives        Initiative[]
-  risks              RiskSquad[]
+  bloqueos           BloqueoSquad[]
   needs              Need[]
   upcomingDeliveries UpcomingDelivery[]
   achievements       Achievement[]
@@ -93,36 +93,41 @@ model Initiative {
   @@map("initiative")
 }
 
-model Risk {
-  id               Int      @id @default(autoincrement())
-  descripcion      String
-  // Categórico y extensible a propósito (no un booleano impacta_ingresos): sumar
-  // categorías después no obliga a migrar ni reclasificar filas viejas (SDD / PRD #7).
-  categoriaImpacto String   @map("categoria_impacto")
-  severidad        String
-  dueno            String
-  accionProxima    String   @map("accion_proxima")
-  checkpoint       String
-  tipo             String
-  semanaInicio     DateTime @map("semana_inicio") @db.Date
-  semanaFin        DateTime @map("semana_fin") @db.Date
-  resuelto         Boolean  @default(false)
+// Bloqueo estructurado: impedimento real que frena al squad. Los riesgos (notas
+// informales) ya no son entidad; van como texto libre en InformeSquadSemanal.riesgos.
+model Bloqueo {
+  id          Int       @id @default(autoincrement())
+  descripcion String
+  severidad   Severidad
+  // Fechas opcionales: inicio del bloqueo y estimación de resolución.
+  desde       DateTime? @db.Date
+  hasta       DateTime? @db.Date
+  resuelto    Boolean   @default(false)
+  resueltoEn  DateTime? @map("resuelto_en")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
-  squads RiskSquad[]
+  squads BloqueoSquad[]
 
-  @@map("risk")
+  @@map("bloqueo")
 }
 
-// Un mismo riesgo puede pegarle a varios squads a la vez sin duplicar la fila.
-model RiskSquad {
-  riskId  Int @map("risk_id")
-  squadId Int @map("squad_id")
+// Un mismo bloqueo puede pegarle a varios squads a la vez sin duplicar la fila.
+model BloqueoSquad {
+  bloqueoId Int @map("bloqueo_id")
+  squadId   Int @map("squad_id")
 
-  risk  Risk  @relation(fields: [riskId], references: [id])
-  squad Squad @relation(fields: [squadId], references: [id])
+  bloqueo Bloqueo @relation(fields: [bloqueoId], references: [id])
+  squad   Squad   @relation(fields: [squadId], references: [id])
 
-  @@id([riskId, squadId])
-  @@map("risk_squad")
+  @@id([bloqueoId, squadId])
+  @@map("bloqueo_squad")
+}
+
+enum Severidad {
+  ALTA
+  MEDIA
+  BAJA
 }
 
 model Need {
@@ -211,6 +216,8 @@ model InformeSquadSemanal {
   novedades         String?
   pasesProduccion   String?  @map("pases_produccion")
   despriorizaciones String?
+  // Riesgos como texto libre (antes eran la entidad Risk, ahora notas informales).
+  riesgos           String?
   pasesPlanificados Int?     @map("pases_planificados")
 
   squad Squad @relation(fields: [squadId], references: [id])
