@@ -299,6 +299,7 @@ async function upsertInitiative(i: ParsedInitiative): Promise<void> {
     fechaInicio: i.fechaInicio ? new Date(i.fechaInicio) : null,
     fechaFin: i.fechaFin ? new Date(i.fechaFin) : null,
     fechaFinReal: i.fechaFinReal ? new Date(i.fechaFinReal) : null,
+    trimestre: i.trimestre,
     semanaInicio: new Date(i.semanaInicio),
   };
   // La identidad es la fila de Smartsheet: con ella se hace upsert (misma

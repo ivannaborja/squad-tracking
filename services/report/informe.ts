@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import type { Semaforo } from '../../domain/types';
-import { resolverTrimestre, trimestreDeFecha } from './quarters';
+import { trimestreDeFecha } from './quarters';
 import { getOverview, getHistory } from './reportService';
 
 // Capa de lectura del informe ejecutivo. Agrega lo que ya está en la base
@@ -126,12 +126,13 @@ export async function getPortfolioTrend(): Promise<TrendPoint[]> {
 }
 
 // Pases a producción del Q: iniciativas de portafolio en Despliegue + 100% +
-// Completo, sobre el total de portafolio del Q. `extra` acota a un squad.
+// Completo, sobre el total de portafolio DEL Q EN CURSO. Se acota por el trimestre
+// de la iniciativa (su nodo Q en Smartsheet), no por la semana del import — así no
+// se cuelan las de Q anteriores. `extra` acota a un squad.
 async function pasesProduccion(date: string, extra: { squadId?: number }): Promise<PasesProduccion> {
-  const tri = resolverTrimestre(trimestreDeFecha(date));
   const enQ = {
     portafolio: true,
-    semanaInicio: { gte: new Date(tri.inicio), lte: new Date(tri.fin) },
+    trimestre: trimestreDeFecha(date),
     ...(extra.squadId !== undefined ? { squadId: extra.squadId } : {}),
   };
   const [total, hechos] = await Promise.all([
