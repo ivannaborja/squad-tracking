@@ -104,6 +104,8 @@ model Bloqueo {
   hasta       DateTime? @db.Date
   resuelto    Boolean   @default(false)
   resueltoEn  DateTime? @map("resuelto_en")
+  // Cómo se resolvió (texto libre): Dai lo narra en su bitácora.
+  notaResolucion String? @map("nota_resolucion")
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @updatedAt @map("updated_at")
 
@@ -131,16 +133,27 @@ enum Severidad {
 }
 
 model Need {
-  id           Int      @id @default(autoincrement())
-  squadId      Int      @map("squad_id")
+  id           Int         @id @default(autoincrement())
+  squadId      Int         @map("squad_id")
   descripcion  String
+  // dueno queda por compatibilidad; ya no se carga desde la UI (Dai no lo usa).
   dueno        String
-  semanaInicio DateTime @map("semana_inicio") @db.Date
-  resuelto     Boolean  @default(false)
+  // Fecha del pedido (se pone hoy al crear pero es editable). Estado reemplaza al
+  // simple "resuelto", que se conserva derivado (resuelto = estado RESUELTA).
+  fecha        DateTime    @default(now()) @db.Date
+  estado       EstadoAyuda @default(ABIERTA)
+  semanaInicio DateTime    @map("semana_inicio") @db.Date
+  resuelto     Boolean     @default(false)
 
   squad Squad @relation(fields: [squadId], references: [id])
 
   @@map("need")
+}
+
+enum EstadoAyuda {
+  ABIERTA
+  MITIGADA_PARCIALMENTE
+  RESUELTA
 }
 
 model UpcomingDelivery {

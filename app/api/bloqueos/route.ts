@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       desde: body.desde ? new Date(body.desde) : null,
       hasta: body.hasta ? new Date(body.hasta) : null,
       resuelto: body.resuelto ?? false,
+      notaResolucion: body.nota_resolucion ?? null,
       squads: { create: (body.squad_ids as number[]).map((squadId) => ({ squadId })) },
     },
   });

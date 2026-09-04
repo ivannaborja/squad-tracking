@@ -22,6 +22,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
   if (body.desde !== undefined) data.desde = body.desde ? new Date(body.desde) : null;
   if (body.hasta !== undefined) data.hasta = body.hasta ? new Date(body.hasta) : null;
+  if (body.nota_resolucion !== undefined) data.notaResolucion = body.nota_resolucion || null;
   if (body.resuelto !== undefined) {
     data.resuelto = body.resuelto;
     // Al resolver se sella la fecha; al reabrir se limpia.

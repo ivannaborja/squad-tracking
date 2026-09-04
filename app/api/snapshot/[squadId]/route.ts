@@ -81,6 +81,8 @@ export async function PATCH(
       id: n.id,
       descripcion: n.descripcion,
       dueno: n.dueno,
+      fecha: iso(n.fecha),
+      estado: n.estado,
       semanaInicio: iso(n.semanaInicio),
       resuelto: n.resuelto,
     })),
