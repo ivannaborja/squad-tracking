@@ -35,7 +35,14 @@ export function BloqueosSection({
 
   const columnas = ['Bloqueo', 'Severidad', 'Desde', 'Hasta', 'Estado'];
   const fila = (b: BloqueoItem) => [
-    b.descripcion,
+    <span key="desc">
+      {b.descripcion}
+      {b.notaResolucion && (
+        <span style={{ display: 'block', fontSize: 12, color: C.gray600, marginTop: 4 }}>
+          Resolución: {b.notaResolucion}
+        </span>
+      )}
+    </span>,
     sevLabel(b.severidad),
     <Mono key="d">{b.desde ?? '—'}</Mono>,
     <Mono key="h">{b.hasta ?? '—'}</Mono>,
@@ -114,6 +121,7 @@ function BloqueoForm({
   const [severidad, setSeveridad] = useState(inicial?.severidad || 'MEDIA');
   const [desde, setDesde] = useState(inicial?.desde ?? '');
   const [hasta, setHasta] = useState(inicial?.hasta ?? '');
+  const [nota, setNota] = useState(inicial?.notaResolucion ?? '');
   const [squadIds, setSquadIds] = useState<number[]>(inicial?.squadIds ?? [squadActual]);
 
   const valido = descripcion.trim() && severidad && squadIds.length > 0;
@@ -129,6 +137,7 @@ function BloqueoForm({
         severidad,
         desde: desde || null,
         hasta: hasta || null,
+        nota_resolucion: nota || null,
         squad_ids: squadIds,
       },
       inicial?.id
@@ -142,6 +151,8 @@ function BloqueoForm({
       <div style={{ maxWidth: 200 }}>
         <SelectField label="Severidad" value={severidad} onChange={setSeveridad} options={SEVERIDADES} />
       </div>
+
+      <TextAreaField label="Nota de resolución (opcional)" value={nota} onChange={setNota} rows={2} />
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 160px' }}>

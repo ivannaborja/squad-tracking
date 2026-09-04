@@ -36,6 +36,7 @@ export interface BloqueoItem {
   desde: string | null;
   hasta: string | null;
   resuelto: boolean;
+  notaResolucion: string | null;
   // Todos los squads que el bloqueo afecta (BloqueoSquad), para reasignar desde el form.
   squadIds: number[];
 }
@@ -43,6 +44,8 @@ export interface NeedItem {
   id: number;
   descripcion: string;
   dueno: string;
+  fecha: string;
+  estado: string; // 'ABIERTA' | 'MITIGADA_PARCIALMENTE' | 'RESUELTA'
   semanaInicio: string;
   resuelto: boolean;
 }

@@ -49,6 +49,16 @@ function CampoTextoEditor({
     }
   });
 
+  // Auto-crecer: la caja se ajusta al alto del contenido, para cargar textos largos
+  // (novedades, pases) sin quedar chica ni depender de scroll interno.
+  useEffect(() => {
+    const el = ref.current;
+    if (el) {
+      el.style.height = 'auto';
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [value]);
+
   function aplicar(nuevo: string, caret: number) {
     caretPendiente.current = caret;
     onChange(nuevo);

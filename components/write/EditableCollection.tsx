@@ -6,7 +6,7 @@ import { Card, SectionTitle } from '../ds';
 import { ListaSimple, Vacio } from '../squad/shared';
 import { useEditMode } from './EditMode';
 import { useApiWrite } from './useApiWrite';
-import { Button, DateField, ErrorText, RowAction, SectionHeader, TextField } from './controls';
+import { Button, DateField, ErrorText, RowAction, SectionHeader, SelectField, TextField } from './controls';
 
 // Las colecciones simples del squad (needs, logros, entregas, intake) comparten
 // el mismo patrón: listar, agregar, editar por campo, y resolver (needs) o quitar
@@ -16,8 +16,10 @@ import { Button, DateField, ErrorText, RowAction, SectionHeader, TextField } fro
 export interface FieldSpec {
   key: string; // clave del estado del form
   label: string;
-  type: 'text' | 'date';
+  type: 'text' | 'date' | 'select';
   apiKey: string; // clave del body de la API (snake_case)
+  options?: { value: string; label: string }[]; // sólo para type 'select'
+  default?: string; // valor inicial del form de "agregar" (ej. fecha de hoy)
 }
 
 interface Props<Item extends { id: number }> {
@@ -40,7 +42,12 @@ export function EditableCollection<Item extends { id: number }>(p: Props<Item>) 
   const { editing } = useEditMode();
   const { pending, error, mutate } = useApiWrite();
 
-  const vacioForm = () => Object.fromEntries(p.fields.map((f) => [f.key, ''])) as Record<string, string>;
+  // Valor inicial de "agregar": `default` explícito si lo hay; si no, la primera
+  // opción del select (evita mandar un enum vacío); si no, vacío.
+  const vacioForm = () =>
+    Object.fromEntries(
+      p.fields.map((f) => [f.key, f.default ?? (f.type === 'select' ? f.options?.[0]?.value ?? '' : '')])
+    ) as Record<string, string>;
   const [adding, setAdding] = useState(false);
   const [newForm, setNewForm] = useState<Record<string, string>>(vacioForm);
   const [editId, setEditId] = useState<number | null>(null);
@@ -78,6 +85,10 @@ export function EditableCollection<Item extends { id: number }>(p: Props<Item>) 
         f.type === 'date' ? (
           <div key={f.key} style={{ flex: '0 0 auto' }}>
             <DateField label={f.label} value={form[f.key] ?? ''} onChange={(v) => set({ ...form, [f.key]: v })} />
+          </div>
+        ) : f.type === 'select' ? (
+          <div key={f.key} style={{ flex: '0 0 auto', minWidth: 200 }}>
+            <SelectField label={f.label} value={form[f.key] ?? ''} onChange={(v) => set({ ...form, [f.key]: v })} options={f.options ?? []} />
           </div>
         ) : (
           <div key={f.key} style={{ flex: '1 1 200px' }}>

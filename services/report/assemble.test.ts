@@ -66,6 +66,8 @@ describe('avisoRojoSinNeed', () => {
     id: 1,
     descripcion: 'ayuda',
     dueno: 'x',
+    fecha: '2026-08-11',
+    estado: 'ABIERTA',
     semanaInicio: '2026-08-11',
     resuelto: false,
   };
