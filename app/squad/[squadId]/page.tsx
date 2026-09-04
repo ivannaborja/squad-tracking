@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { getSquadReportView, getSquads } from '../../../services/report/reportService';
 import { getNarrativaSquad } from '../../../services/report/informe';
 import { C, FONT } from '../../../lib/ds-tokens';
-import { Card, SemaforoBadge, Mono, stripeColor } from '../../../components/ds';
+import { Card, SemaforoBadge, Mono, stripeColor, SectionTitle } from '../../../components/ds';
 import { ExportButton } from '../../../components/ExportButton';
 import { hoyISO, inicioDeSemana } from '../../../lib/dates';
 import { NavGuardProvider } from '../../../components/informe/NavGuard';
@@ -33,13 +33,15 @@ export default async function Detalle({ params }: { params: Promise<{ squadId: s
   const s = view.snapshot;
 
   // Un editor de texto de narrativa (Novedades/Pases/Despriorizaciones/Riesgos) que
-  // guarda en InformeSquadSemanal de la semana en curso.
-  const narrativaEditor = (key: string, label: string, value: string | null) => (
+  // guarda en InformeSquadSemanal de la semana en curso. `ocultarLabel` deja el
+  // título a cargo de un SectionTitle externo, uniforme con las demás secciones.
+  const narrativaEditor = (key: string, label: string, value: string | null, ocultarLabel = false) => (
     <NarrativaEditor
       endpoint={`/api/informe/squad/${squadId}`}
       semanaInicio={semanaActual}
       historiaTabla="informe_squad_semanal"
       historiaRegistroId={narrativa.informeId}
+      ocultarLabel={ocultarLabel}
       campos={[{ key, label, tipo: 'texto', value: value ?? '' }]}
     />
   );
@@ -82,31 +84,28 @@ export default async function Detalle({ params }: { params: Promise<{ squadId: s
               date={date}
             />
 
-            {/* Las 7 secciones de la bitácora, en orden. */}
-            <div style={{ marginTop: 28 }}>
-              <BloqueosSection squadId={squadId} bloqueos={view.collections.bloqueos} squads={squads} />
-            </div>
+            {/* Las 7 secciones de la bitácora, en orden. Cada una encabezada por un
+                SectionTitle (mismo tamaño/color): las estructuradas lo traen adentro;
+                las de texto lo llevan acá afuera con el editor en modo ocultarLabel. */}
+            <BloqueosSection squadId={squadId} bloqueos={view.collections.bloqueos} squads={squads} />
 
-            <div style={{ marginTop: 28 }}>{narrativaEditor('novedades', 'Novedades de squad', narrativa.novedades)}</div>
+            <SectionTitle>Novedades de squad</SectionTitle>
+            {narrativaEditor('novedades', 'Novedades de squad', narrativa.novedades, true)}
 
-            <div style={{ marginTop: 28 }}>
-              <UpcomingSection squadId={squadId} upcomingDeliveries={view.collections.upcomingDeliveries} semanaActual={semanaActual} />
-            </div>
+            <UpcomingSection squadId={squadId} upcomingDeliveries={view.collections.upcomingDeliveries} semanaActual={semanaActual} />
 
-            <div style={{ marginTop: 28 }}>{narrativaEditor('pases_produccion', 'Pases a producción', narrativa.pasesProduccion)}</div>
+            <SectionTitle>Pases a producción</SectionTitle>
+            {narrativaEditor('pases_produccion', 'Pases a producción', narrativa.pasesProduccion, true)}
 
-            <div style={{ marginTop: 28 }}>
-              <UnplannedSection squadId={squadId} unplannedIntake={view.collections.unplannedIntake} semanaActual={semanaActual} />
-            </div>
+            <UnplannedSection squadId={squadId} unplannedIntake={view.collections.unplannedIntake} semanaActual={semanaActual} />
 
-            <div style={{ marginTop: 28 }}>{narrativaEditor('despriorizaciones', 'Despriorizaciones', narrativa.despriorizaciones)}</div>
+            <SectionTitle>Despriorizaciones</SectionTitle>
+            {narrativaEditor('despriorizaciones', 'Despriorizaciones', narrativa.despriorizaciones, true)}
 
             {/* 7) Necesitamos de ustedes / Riesgos: la lista estructurada + los riesgos
-                como texto libre bajo el mismo bloque. */}
-            <div style={{ marginTop: 28 }}>
-              <NeedsSection squadId={squadId} needs={view.collections.needs} semanaActual={semanaActual} />
-              <div style={{ marginTop: 16 }}>{narrativaEditor('riesgos', 'Riesgos', narrativa.riesgos)}</div>
-            </div>
+                como texto libre bajo el mismo bloque (Riesgos queda como subcampo). */}
+            <NeedsSection squadId={squadId} needs={view.collections.needs} semanaActual={semanaActual} />
+            <div style={{ marginTop: 16 }}>{narrativaEditor('riesgos', 'Riesgos', narrativa.riesgos)}</div>
           </div>
         </EditModeProvider>
       </NavGuardProvider>

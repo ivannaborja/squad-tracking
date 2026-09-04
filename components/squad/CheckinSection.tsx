@@ -110,7 +110,7 @@ function CheckinEditor({
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16 }}>
         <Button onClick={guardar} disabled={pending || !hayCambios}>
-          {pending ? 'Guardando…' : 'Confirmar check-in'}
+          {pending ? 'Guardando…' : 'Confirmar'}
         </Button>
       </div>
       <ErrorText error={error} />
