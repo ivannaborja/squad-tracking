@@ -36,6 +36,33 @@ export interface SquadRef {
   nombre: string;
 }
 
+// Una métrica del Q en curso: el %real que trae la planilla y las fechas de ese
+// mismo nodo. Todo nullable porque la planilla tiene huecos honestos (un nodo que
+// existe pero sin % o sin fechas cargadas) que preferimos mostrar vacíos.
+export interface Metrica {
+  real: number | null;
+  inicio: string | null;
+  fin: string | null;
+}
+
+// Las 4 métricas de un squad para el Q en curso. `q3Total` se llama así por el
+// caso vigente (Q3) pero representa el Q que elija el período. `avanzar` y
+// `discovery` son null cuando el squad no tiene ese nodo (no todos lo tienen).
+export interface MetricasSquad {
+  squadId: number;
+  q3Total: Metrica;
+  finalizar: Metrica;
+  avanzar: Metrica | null;
+  discovery: Metrica | null;
+}
+
+// Un squad matcheado con su raíz del árbol: lo mínimo que fetchMetricas necesita
+// para caminar los nodos del Q sin recomputar el match.
+interface SquadArbol {
+  squadId: number;
+  raiz: Nodo;
+}
+
 interface Nodo {
   id: string;
   nombre: string;
@@ -116,7 +143,11 @@ export class SmartsheetDataSource implements DataSource {
   private constructor(
     private readonly squads: SquadReal[],
     private readonly initiatives: PreInitiative[],
-    private readonly avisos: string[]
+    private readonly avisos: string[],
+    // El árbol crudo y los squads matcheados: fetchMetricas los recorre al vuelo
+    // porque el Q a extraer depende del período, no del momento del parseo.
+    private readonly nodos: Nodo[],
+    private readonly arboles: SquadArbol[]
   ) {}
 
   // Construcción asíncrona: leer el .xlsx es async, así el resto del contrato
@@ -159,6 +190,7 @@ export class SmartsheetDataSource implements DataSource {
 
     const squads: SquadReal[] = [];
     const avisos: string[] = [];
+    const arboles: SquadArbol[] = [];
     const matcheados = new Set<number>();
 
     // Los squads son las filas raíz (sin Padre), menos el molde "Plantilla squads".
@@ -169,6 +201,11 @@ export class SmartsheetDataSource implements DataSource {
         avisos.push(`Squad de la planilla sin correspondencia en el sistema: "${raiz.nombre}".`);
         continue;
       }
+
+      // Se registra el árbol apenas hay match, aparte del snapshot: las métricas
+      // se quieren para todo squad matcheado aunque después el snapshot se omita
+      // por no poder leer el % general.
+      arboles.push({ squadId, raiz });
 
       // Sólo hijos DIRECTOS: una iniciativa con "delivery" en el nombre, más abajo
       // en el árbol, no debe confundirse con el nodo Delivery del squad.
@@ -264,7 +301,7 @@ export class SmartsheetDataSource implements DataSource {
         ').'
     );
 
-    return new SmartsheetDataSource(squads, initiatives, avisos);
+    return new SmartsheetDataSource(squads, initiatives, avisos, nodos, arboles);
   }
 
   async fetchSnapshot(period: Period): Promise<SquadSnapshot[]> {
@@ -314,8 +351,71 @@ export class SmartsheetDataSource implements DataSource {
     }));
   }
 
+  // Las 4 métricas por squad del Q en curso, cada una con su %real y sus fechas.
+  // Aditivo respecto a fetchSnapshot: éste devuelve un delivery agregado; acá se
+  // exponen los nodos crudos (Q entero, Finalizar, Avanzar, Discovery) tal como
+  // los carga la planilla, para pintarlos por separado.
+  fetchMetricas(period: Period): MetricasSquad[] {
+    // "Q3-2026" → "q3": el trimestre que este import representa.
+    const q = normalizar(period.trimestre.nombre.split('-')[0]);
+
+    // Un nodo → su métrica; el hueco (nodo ausente) se representa con todo null
+    // para que el vacío sea visible en vez de inventarse un 0.
+    const metricaDe = (n: Nodo | undefined): Metrica =>
+      n ? { real: n.completo, inicio: n.fechaInicio, fin: n.fechaFin } : { real: null, inicio: null, fin: null };
+
+    return this.arboles.map(({ squadId, raiz }) => {
+      const hijosRaiz = this.nodos.filter((n) => n.padre === raiz.id);
+
+      // El Q puede colgar de un nodo "Delivery" o directo de la raíz (caso
+      // Empresas, sin ese contenedor intermedio).
+      const deliveryNode = hijosRaiz.find((n) => normalizar(n.nombre).includes('delivery'));
+      const contenedorQ = deliveryNode ?? raiz;
+      const qNode = this.nodos.find((n) => n.padre === contenedorQ.id && normalizar(n.nombre) === q);
+
+      // Discovery cuelga siempre de la raíz (no se desglosa por Q); null si no está.
+      const discoveryNode = hijosRaiz.find((n) => normalizar(n.nombre).includes('discovery'));
+      const discovery = discoveryNode ? metricaDe(discoveryNode) : null;
+
+      if (!qNode) {
+        this.avisos.push(`"${raiz.nombre}": no se encontró el nodo ${q.toUpperCase()}; sus métricas del Q quedan vacías.`);
+        return { squadId, q3Total: metricaDe(undefined), finalizar: metricaDe(undefined), avanzar: null, discovery };
+      }
+
+      const hijosQ = this.nodos.filter((n) => n.padre === qNode.id);
+
+      // Finalizar: el "Priorizado … Finalizar". Si NINGÚN hijo dice "finalizar"
+      // pero hay un "Priorizado …" (Empresas: "Priorizado por el directorio"),
+      // ése hace de finalizar.
+      let finalizar = hijosQ.find(
+        (n) => normalizar(n.nombre).startsWith('priorizado') && normalizar(n.nombre).includes('finalizar')
+      );
+      if (!finalizar && !hijosQ.some((n) => normalizar(n.nombre).includes('finalizar'))) {
+        finalizar = hijosQ.find((n) => normalizar(n.nombre).startsWith('priorizado'));
+      }
+      if (!finalizar) {
+        this.avisos.push(`"${raiz.nombre}": ${q.toUpperCase()} sin nodo "Priorizado … Finalizar"; esa métrica queda vacía.`);
+      }
+
+      // Avanzar: el "Priorizado … Avanzar"; null si el squad no lo tiene.
+      const avanzarNode = hijosQ.find(
+        (n) => normalizar(n.nombre).startsWith('priorizado') && normalizar(n.nombre).includes('avanzar')
+      );
+
+      return {
+        squadId,
+        q3Total: metricaDe(qNode),
+        finalizar: metricaDe(finalizar),
+        avanzar: avanzarNode ? metricaDe(avanzarNode) : null,
+        discovery,
+      };
+    });
+  }
+
   warnings(): string[] {
-    return this.avisos;
+    // Sin duplicados: fetchMetricas agrega sus avisos al leer, así que una llamada
+    // repetida no debe inflar el resumen del import con el mismo mensaje dos veces.
+    return Array.from(new Set(this.avisos));
   }
 }
 
