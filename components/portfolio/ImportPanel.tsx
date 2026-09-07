@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { C, FONT, fmtPct } from '../../lib/ds-tokens';
 import { useApiWrite } from '../write/useApiWrite';
@@ -130,12 +130,7 @@ export function ImportPanel() {
                 Subí el export de Smartsheet (.xlsx) o un CSV. Si algún real ya lo corregiste a mano y el
                 archivo trae otro valor, te vamos a pedir confirmación antes de pisarlo.
               </p>
-              <input
-                type="file"
-                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                style={{ fontSize: 14, fontFamily: FONT.body }}
-              />
+              <Dropzone file={file} onFile={setFile} />
               <div style={{ display: 'flex', gap: 8 }}>
                 <Button onClick={subir} disabled={pending || !file}>
                   {pending ? 'Subiendo…' : 'Subir'}
@@ -150,6 +145,80 @@ export function ImportPanel() {
         </Modal>
       )}
     </>
+  );
+}
+
+const ACCEPT = '.csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+
+// Zona de subida clara: todo el recuadro es clicable (abre el selector del SO) y
+// también acepta arrastrar-y-soltar. El <input> nativo va oculto porque su texto
+// por defecto ("Elegir archivo") no dejaba claro dónde ni cómo subir.
+function Dropzone({ file, onFile }: { file: File | null; onFile: (f: File | null) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [arrastrando, setArrastrando] = useState(false);
+  const abrir = () => inputRef.current?.click();
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={abrir}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          abrir();
+        }
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setArrastrando(true);
+      }}
+      onDragLeave={() => setArrastrando(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setArrastrando(false);
+        const f = e.dataTransfer.files?.[0];
+        if (f) onFile(f);
+      }}
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 6,
+        border: `2px dashed ${arrastrando ? C.navy700 : C.gray300}`,
+        borderRadius: 10,
+        padding: '26px 20px',
+        textAlign: 'center',
+        cursor: 'pointer',
+        background: arrastrando ? C.navy050 : C.gray050,
+      }}
+    >
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={C.navy700} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M12 16V4" />
+        <path d="M7 9l5-5 5 5" />
+        <path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3" />
+      </svg>
+      {file ? (
+        <>
+          <span style={{ fontSize: 14, fontWeight: 600, color: C.navy900, wordBreak: 'break-all' }}>{file.name}</span>
+          <span style={{ fontSize: 13, color: C.gray600 }}>Hacé clic para elegir otro archivo</span>
+        </>
+      ) : (
+        <>
+          <span style={{ fontSize: 14, fontWeight: 600, color: C.navy900 }}>
+            Hacé clic para elegir un archivo
+          </span>
+          <span style={{ fontSize: 13, color: C.gray600 }}>o arrastralo aquí · .xlsx (Smartsheet) o .csv</span>
+        </>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept={ACCEPT}
+        onChange={(e) => onFile(e.target.files?.[0] ?? null)}
+        style={{ display: 'none' }}
+      />
+    </div>
   );
 }
 
