@@ -1,12 +1,12 @@
 import { C, deltaColor, fmtPct, fmtPp } from '../../lib/ds-tokens';
 import { Card, Kpi, Mono } from '../ds';
-import { KpiDelta } from './shared';
 import type { AHoy, SnapshotView } from '../../services/report/types';
 
-// Números del check-in del squad, SÓLO LECTURA: la app es copia fiel del
-// Smartsheet, los reales no se editan a mano (se corrigen en la planilla y se
-// reimporta). Delivery = Priorizado Finalizar; el esperado se deriva a hoy de las
-// fechas del nodo. El desglose completo de las 4 métricas vive en el informe del squad.
+// Números del check-in del squad, SÓLO LECTURA (copia fiel del Smartsheet). Cada
+// card muestra el %real grande (dónde está el squad) y, debajo, su esperado y los
+// puntos de diferencia, para ver el estado de un vistazo. El delivery comprometido
+// se compara contra los dos esperados: el del Q (el oficial, define el color) y el
+// priorizado (por fechas). El desglose de las 4 métricas vive en el informe del squad.
 export function CheckinSection({
   snapshot,
   aHoy,
@@ -19,24 +19,54 @@ export function CheckinSection({
   date: string;
 }) {
   return (
-    <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginTop: 16 }}>
-        <Kpi label={`Esperado del Q (${date})`} value={fmtPct(aHoy.esperadoPct)} />
-        <Kpi label="Esperado priorizado" value={fmtPct(aHoy.esperadoPriorizadoPct)} />
-        <KpiDelta label="Delivery comprometido priorizado" real={snapshot.deliveryRealPct} delta={snapshot.deliveryDeltaPct} />
-        <KpiDelta label="Discovery" real={snapshot.discoveryRealPct} delta={snapshot.discoveryDeltaPct} />
-        <Kpi label="No planificadas" value={kpiNoPlanificadas} color={C.navy700} />
-      </div>
-      <Card style={{ padding: 16, marginTop: 16, background: C.navy050, border: 'none' }}>
-        <span style={{ fontSize: 13, color: C.gray600 }}>Desvío a hoy — </span>
-        <span style={{ fontSize: 13, color: C.gray600 }}>
-          Delivery vs Q <Mono style={{ color: deltaColor(aHoy.deliveryDeltaPct) }}>{fmtPp(aHoy.deliveryDeltaPct)}</Mono>
-          {aHoy.deliveryDeltaPriorizadoPct !== null && (
-            <> {'('}vs priorizado <Mono style={{ color: deltaColor(aHoy.deliveryDeltaPriorizadoPct) }}>{fmtPp(aHoy.deliveryDeltaPriorizadoPct)}</Mono>{')'}</>
-          )}
-          {'  ·  '}Discovery vs Q <Mono style={{ color: deltaColor(aHoy.discoveryDeltaPct) }}>{fmtPp(aHoy.discoveryDeltaPct)}</Mono>
-        </span>
-      </Card>
-    </>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 16, marginTop: 16 }}>
+      <MetricCard
+        titulo="Delivery comprometido priorizado"
+        real={snapshot.deliveryRealPct}
+        filas={[
+          { label: `Esperado del Q (${date})`, esperado: aHoy.esperadoPct, delta: snapshot.deliveryDeltaPct },
+          { label: 'Esperado priorizado', esperado: aHoy.esperadoPriorizadoPct, delta: aHoy.deliveryDeltaPriorizadoPct },
+        ]}
+      />
+      <MetricCard
+        titulo="Discovery comprometido"
+        real={snapshot.discoveryRealPct}
+        filas={[{ label: `Esperado del Q (${date})`, esperado: aHoy.esperadoPct, delta: snapshot.discoveryDeltaPct }]}
+      />
+      <Kpi label="No planificadas" value={kpiNoPlanificadas} color={C.navy700} />
+    </div>
+  );
+}
+
+// El %real grande y, debajo, una línea por esperado con su valor y la diferencia en
+// pp (verde si llegó o superó, rojo si quedó abajo). "No aplica" si no hay real.
+function MetricCard({
+  titulo,
+  real,
+  filas,
+}: {
+  titulo: string;
+  real: number | null;
+  filas: { label: string; esperado: number | null; delta: number | null }[];
+}) {
+  return (
+    <Card style={{ padding: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: C.gray600 }}>{titulo}</div>
+      <Mono style={{ display: 'block', fontSize: 28, fontWeight: 600, color: C.navy900, marginTop: 4 }}>
+        {real === null ? 'No aplica' : fmtPct(real)}
+      </Mono>
+      {real !== null &&
+        filas.map((f) => (
+          <div key={f.label} style={{ fontSize: 12, color: C.gray600, marginTop: 6 }}>
+            {f.label}: <Mono style={{ color: C.gray900 }}>{fmtPct(f.esperado)}</Mono>
+            {f.delta !== null && (
+              <>
+                {'  ·  '}
+                <Mono style={{ color: deltaColor(f.delta), fontWeight: 600 }}>{fmtPp(f.delta)}</Mono>
+              </>
+            )}
+          </div>
+        ))}
+    </Card>
   );
 }
