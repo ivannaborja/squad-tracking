@@ -77,7 +77,7 @@ export function KpiRow({ kpis, pasesPlanificadosSlot }: { kpis: InformeKpis; pas
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, margin: '20px 0 8px' }}>
       <KpiInforme
-        label="Avance Delivery"
+        label="Avance Delivery priorizado"
         value={fmtPct(deliveryPromedio)}
         sub={
           <>
@@ -133,7 +133,7 @@ export function SemaforoTabla({ rows }: { rows: SemaforoRow[] }) {
   return (
     <div style={{ border: `1px solid ${C.gray200}`, borderRadius: 8, overflowX: 'auto', background: C.white }}>
       <div style={{ display: 'grid', gridTemplateColumns: grid, gap: 16, padding: '12px 20px', background: C.navy100, minWidth: 560 }}>
-        {['Squad', 'Delivery comprometido', 'Discovery comprometido'].map((h) => (
+        {['Squad', 'Delivery comprometido priorizado', 'Discovery comprometido'].map((h) => (
           <span key={h} style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: C.navy900 }}>{h}</span>
         ))}
       </div>

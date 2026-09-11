@@ -27,7 +27,7 @@ export function SquadGrid({ squads }: { squads: SquadReportViewCompact[] }) {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 10, borderTop: `1px solid ${C.gray200}` }}>
                 <MetricDual
-                  label="Delivery comprometido"
+                  label="Delivery comprometido priorizado"
                   real={s.deliveryRealPct}
                   vsQ={s.deliveryDeltaPct}
                   vsPriorizado={s.deliveryDeltaPriorizadoPct}
