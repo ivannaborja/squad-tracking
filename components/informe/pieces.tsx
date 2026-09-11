@@ -1,10 +1,50 @@
 import Link from 'next/link';
-import { C, FONT, fmtPct, fmtPp, deltaColor } from '../../lib/ds-tokens';
+import { C, FONT, fmtPct, fmtPct1, fmtPp, deltaColor } from '../../lib/ds-tokens';
 import { Card, Mono } from '../ds';
-import type { InformeKpis, SemaforoRow, SimpleItem, EntregaItem, NeedItem, BloqueoItem } from '../../services/report/informe';
+import type { InformeKpis, MetricaVista, MetricasVista, SemaforoRow, SimpleItem, EntregaItem, NeedItem, BloqueoItem } from '../../services/report/informe';
 
 const brecha = (real: number | null, esperado: number | null): number | null =>
   real === null || esperado === null ? null : real - esperado;
+
+// Panel de las 4 métricas del Q por squad (vista de squad). Cada una con su %real
+// (1 decimal, como el Smartsheet), su esperado por fechas y el desvío. "Priorizado
+// Finalizar" es el comprometido que define el color; Avanzar/Discovery pueden no
+// aplicar. Es sólo lectura: la app es copia fiel del Smartsheet.
+export function PanelMetricas({ metricas }: { metricas: MetricasVista }) {
+  const items: Array<{ label: string; m: MetricaVista | null; principal?: boolean }> = [
+    { label: 'Delivery Q3 total', m: metricas.q3Total },
+    { label: 'Priorizado Finalizar', m: metricas.finalizar, principal: true },
+    { label: 'Priorizado Avanzar', m: metricas.avanzar },
+    { label: 'Discovery', m: metricas.discovery },
+  ];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+      {items.map(({ label, m, principal }) => (
+        <Card key={label} style={{ padding: '14px 16px', border: `1px solid ${principal ? C.navy700 : C.gray200}` }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            {label}
+          </div>
+          {m && m.real !== null ? (
+            <>
+              <Mono style={{ display: 'block', fontSize: 22, fontWeight: 600, color: C.navy900, marginTop: 6 }}>{fmtPct1(m.real)}</Mono>
+              <div style={{ fontSize: 12, color: C.gray600, marginTop: 4 }}>
+                Esperado {fmtPct1(m.esperado)}
+                {m.desvio !== null && (
+                  <>
+                    {' · '}
+                    <Mono style={{ color: deltaColor(m.desvio), fontWeight: 600 }}>{fmtPp(m.desvio)}</Mono>
+                  </>
+                )}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 14, color: C.gray400, marginTop: 8 }}>No aplica</div>
+          )}
+        </Card>
+      ))}
+    </div>
+  );
+}
 
 // La fila de 4 KPIs de la cabecera del informe (general o individual, misma forma).
 // pasesPlanificadosSlot: si se pasa, ocupa la 4ta celda (card editable inline) en
