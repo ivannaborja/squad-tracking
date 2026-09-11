@@ -20,8 +20,9 @@ export function CheckinSection({
 }) {
   return (
     <>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginTop: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16, marginTop: 16 }}>
         <Kpi label={`Esperado del Q (${date})`} value={fmtPct(aHoy.esperadoPct)} />
+        <Kpi label="Esperado priorizado" value={fmtPct(aHoy.esperadoPriorizadoPct)} />
         <KpiDelta label="Delivery comprometido priorizado" real={snapshot.deliveryRealPct} delta={snapshot.deliveryDeltaPct} />
         <KpiDelta label="Discovery" real={snapshot.discoveryRealPct} delta={snapshot.discoveryDeltaPct} />
         <Kpi label="No planificadas" value={kpiNoPlanificadas} color={C.navy700} />
