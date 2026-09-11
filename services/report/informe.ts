@@ -1,7 +1,10 @@
 import { prisma } from '../../lib/prisma';
 import type { Semaforo } from '../../domain/types';
-import { trimestreDeFecha } from './quarters';
+import { resolverTrimestre, trimestreDeFecha } from './quarters';
 import { getOverview, getHistory } from './reportService';
+import { esperadoPct } from '../../domain/esperadoPct';
+import { esperadoDesdeFechas } from '../../domain/esperadoFechas';
+import { derivar } from './assemble';
 
 // Capa de lectura del informe ejecutivo. Agrega lo que ya está en la base
 // (snapshots, iniciativas) en los 4 KPIs y la tendencia, y suma la narrativa que
@@ -17,7 +20,8 @@ export interface TrendPoint {
   semanaInicio: string;
   deliveryPct: number | null;
   discoveryPct: number | null;
-  esperadoPct: number;
+  // null si no se puede derivar (falta la métrica de delivery o sus fechas).
+  esperadoPct: number | null;
 }
 
 // Un pase a producción cuenta si la iniciativa de portafolio está en Despliegue,
@@ -30,7 +34,7 @@ export interface PasesProduccion {
 export interface InformeKpis {
   deliveryPromedio: number | null;
   discoveryPromedio: number | null;
-  esperadoPct: number;
+  esperadoPct: number | null;
   // Discovery de esta semana menos el de la semana anterior (pp). null si no hay
   // semana previa con dato.
   discoveryDeltaSemanaAnterior: number | null;
@@ -110,9 +114,13 @@ export async function getPortfolioTrend(): Promise<TrendPoint[]> {
   for (const r of rows) {
     const wk = iso(r.semanaInicio);
     const g = porSemana.get(wk) ?? { del: [], dis: [], esp: [] };
-    g.del.push(r.deliveryRealPct);
-    if (r.discoveryRealPct !== null) g.dis.push(r.discoveryRealPct);
-    g.esp.push(r.esperadoPct);
+    // Delivery del portafolio = el comprometido (Priorizado Finalizar) de cada squad.
+    if (r.finalizarReal !== null) g.del.push(r.finalizarReal);
+    if (r.discoveryReal !== null) g.dis.push(r.discoveryReal);
+    // El esperado del portafolio sigue siendo el del calendario del Q (decisión de
+    // negocio, a confirmar con Dai), no el por-fechas de cada squad.
+    const fecha = iso(r.fechaReferencia);
+    g.esp.push(esperadoPct(fecha, resolverTrimestre(trimestreDeFecha(fecha))));
     porSemana.set(wk, g);
   }
   return [...porSemana.entries()]
@@ -120,7 +128,7 @@ export async function getPortfolioTrend(): Promise<TrendPoint[]> {
       semanaInicio,
       deliveryPct: avg(g.del),
       discoveryPct: avg(g.dis),
-      esperadoPct: avg(g.esp) ?? 0,
+      esperadoPct: avg(g.esp),
     }))
     .sort((a, b) => a.semanaInicio.localeCompare(b.semanaInicio));
 }
@@ -163,7 +171,7 @@ export async function getInformeGeneral(date: string): Promise<InformeGeneralVie
     kpis: {
       deliveryPromedio: ultima?.deliveryPct ?? null,
       discoveryPromedio: ultima?.discoveryPct ?? null,
-      esperadoPct: ultima?.esperadoPct ?? 0,
+      esperadoPct: ultima?.esperadoPct ?? null,
       discoveryDeltaSemanaAnterior: deltaDiscovery(ultima, previa),
       pasesProduccion: pases,
       pasesPlanificados: informe?.pasesPlanificados ?? null,
@@ -212,11 +220,13 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
   if (!squad) return null;
 
   const historia = await getHistory(squadId); // orden ascendente por fecha_referencia
+  // Tendencia del squad: delivery = Priorizado Finalizar; el esperado sale de las
+  // fechas de ese nodo (fórmula del Smartsheet), congelado con la fecha de la semana.
   const trend: TrendPoint[] = historia.map((h) => ({
     semanaInicio: h.semanaInicio,
-    deliveryPct: h.deliveryRealPct,
-    discoveryPct: h.discoveryRealPct,
-    esperadoPct: h.esperadoPct,
+    deliveryPct: h.finalizar.real,
+    discoveryPct: h.discovery?.real ?? null,
+    esperadoPct: esperadoDesdeFechas(h.fechaReferencia, h.finalizar.inicio, h.finalizar.fin),
   }));
   const ultima = trend.at(-1) ?? null;
   const previa = trend.length >= 2 ? trend[trend.length - 2] : null;
@@ -251,12 +261,12 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
     squadNombre: squad.nombre,
     semanaInicio,
     informeId: informe?.id ?? null,
-    semaforo: ultimoSnap ? (ultimoSnap.semaforo as Semaforo) : null,
+    semaforo: ultimoSnap ? derivar(ultimoSnap, date).semaforo : null,
     datosDe: ultimoSnap?.fechaReferencia ?? null,
     kpis: {
       deliveryPromedio: ultima?.deliveryPct ?? null,
       discoveryPromedio: ultima?.discoveryPct ?? null,
-      esperadoPct: ultima?.esperadoPct ?? 0,
+      esperadoPct: ultima?.esperadoPct ?? null,
       discoveryDeltaSemanaAnterior: deltaDiscovery(ultima, previa),
       pasesProduccion: pases,
       pasesPlanificados: informe?.pasesPlanificados ?? null,

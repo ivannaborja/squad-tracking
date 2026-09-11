@@ -1,24 +1,31 @@
 import type { Semaforo } from '../../domain/types';
 
-// Los calculados recomputados en vivo contra la fecha pedida. Van SEPARADOS de
-// los persistidos: son cuenta de fechas, no el color oficial (ver SDD/api.md).
+// Los calculados derivados contra la fecha pedida. Cuenta de fechas del Smartsheet,
+// no algo persistido (ver SDD). esperadoPct null cuando la métrica de delivery
+// (Finalizar) no tiene fechas cargadas; los deltas null sin real o sin esperado.
 export interface AHoy {
-  esperadoPct: number;
-  // null cuando el squad no tiene reales cargados todavía: sin real no hay brecha.
+  esperadoPct: number | null;
   deliveryDeltaPct: number | null;
   discoveryDeltaPct: number | null;
 }
 
-// La fila persistida ya normalizada (fechas en ISO string), como la pasa
-// reportService al ensamblador puro.
+// Una métrica cruda del Smartsheet tal como se persiste: el %real del nodo y sus
+// fechas planificadas. Con esto se deriva el esperado (esperadoDesdeFechas). Todo
+// nullable: la métrica puede faltar (hueco) o venir sin fechas.
+export interface MetricaPersistida {
+  real: number | null;
+  inicio: string | null; // YYYY-MM-DD
+  fin: string | null;
+}
+
+// La fila persistida ya normalizada (fechas en ISO string). Guarda las 4 métricas
+// crudas; el esperado/desvío/color NO se guardan, se derivan al leer con la fecha
+// pedida (a hoy la fecha real; en el histórico la de la semana).
 export interface PersistedSnapshot {
-  semaforo: import('../../domain/types').Semaforo;
-  deliveryRealPct: number;
-  // Nullable: un squad solo-delivery (ej. Empresas) no tiene discovery.
-  discoveryRealPct: number | null;
-  esperadoPct: number;
-  deliveryDeltaPct: number;
-  discoveryDeltaPct: number | null;
+  q3Total: MetricaPersistida;
+  finalizar: MetricaPersistida;
+  avanzar: MetricaPersistida | null;
+  discovery: MetricaPersistida | null;
   trimestre: string;
   semanaInicio: string;
   fechaReferencia: string;

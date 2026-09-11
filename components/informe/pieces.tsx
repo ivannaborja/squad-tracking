@@ -3,7 +3,8 @@ import { C, FONT, fmtPct, fmtPp, deltaColor } from '../../lib/ds-tokens';
 import { Card, Mono } from '../ds';
 import type { InformeKpis, SemaforoRow, SimpleItem, EntregaItem, NeedItem, BloqueoItem } from '../../services/report/informe';
 
-const brecha = (real: number | null, esperado: number): number | null => (real === null ? null : real - esperado);
+const brecha = (real: number | null, esperado: number | null): number | null =>
+  real === null || esperado === null ? null : real - esperado;
 
 // La fila de 4 KPIs de la cabecera del informe (general o individual, misma forma).
 // pasesPlanificadosSlot: si se pasa, ocupa la 4ta celda (card editable inline) en

@@ -15,37 +15,29 @@ contra `context/scope.md`, `context/glossary.md` y `context/open-questions.md`.
 **SquadSnapshot** — la foto de un squad en un check-in. Una fila por squad por
 semana; dentro de la misma semana se **actualiza en el lugar**, y **nunca se pisa
 entre semanas** (historial completo semana a semana desde el día 1):
-`id, squad_id FK, semana_inicio, fecha_referencia, trimestre, delivery_real_pct,
-discovery_real_pct, delivery_manual_override (bool, default false),
-discovery_manual_override (bool, default false), esperado_pct (calc·congelado
-contra fecha_referencia), delivery_delta_pct (calc), discovery_delta_pct (calc),
-semaforo (calc·no editable), frase_pronostico (texto, la escribe el equipo de
-Agile Coach), editado_por`
+`id, squad_id FK, semana_inicio, fecha_referencia, trimestre` + las **4 métricas
+del Q en curso**, cada una con su `_real` (fracción 0–1, nullable) y sus fechas
+planificadas `_inicio`/`_fin`: `q3_total_*` (el nodo Q entero), `finalizar_*`
+(Priorizado directorio - Finalizar — el comprometido que define el color),
+`avanzar_*` (Priorizado directorio - Avanzar), `discovery_*` (nodo Discovery). Más
+`frase_pronostico` (texto, la escribe el equipo de Agile Coach) y `editado_por`.
 
-- **`delivery_manual_override` / `discovery_manual_override`** — procedencia por
-  campo de los dos reales. Se activan (`true`) cuando el equipo de Agile Coach
-  edita **ese** real a mano esa semana. Un import que choca contra un flag
-  activo dispara la confirmación del Flujo 3 (`flows.md`): si el equipo de
-  Agile Coach confirma el import, el valor se sobrescribe y el flag vuelve a
-  `false`; si no, se conserva el valor manual y el flag sigue en `true`. **Son
-  dos flags separados, no uno solo de "origen" a nivel snapshot**, porque el
-  equipo de Agile Coach puede corregir un real y dejar el otro intacto en la
-  misma semana.
-- **`fecha_referencia`** — el día real del check-in. **No es un jueves asumido:
-  el equipo de Agile Coach puede entrar cualquier día** (martes, domingo, el que
-  sea) y ve el estado a esa fecha. Es contra `fecha_referencia` que se calculó
-  `esperado_pct` y que se
-  evaluó la ventana de los riesgos ese check-in.
-- **`semana_inicio`** — sólo **agrupa** a qué semana pertenece la fila (para
-  comparar Q contra Q y armar el historial). No es la fecha de cálculo; esa es
-  `fecha_referencia`.
-- **`discovery_real_pct` / `discovery_delta_pct` son nullable.** Un squad
-  **solo-delivery** no tiene discovery: en el Smartsheet real, Empresas no trae
-  nodo Discovery (sus hijos son `Q2`/`Q3`), así que su delivery sale del
-  `% Completo` del top-level y su discovery queda **`null`** — un hueco honesto, no
-  un `0` que fingiría una brecha. Es un caso válido, no un error. `delivery_real_pct`
-  nunca es null (todo squad tiene delivery; es lo que pinta el color). El semáforo
-  no depende de discovery, así que un discovery nulo no lo afecta.
+- **Espejo fiel del Smartsheet.** Se guarda sólo lo que trae la planilla: el
+  `%_real` de cada nodo y sus fechas. El **esperado, el desvío y el color NO se
+  persisten** — son cálculo puro que se **deriva al leer** con `esperadoDesdeFechas`
+  (§1): a hoy con la fecha real (como el `TODAY()` del Smartsheet), en el histórico
+  con la fecha de la semana. Por eso **ya no hay edición manual, ni `*_override`, ni
+  el flujo de conflictos del Flujo 3**: los números y las fechas son siempre los del
+  Smartsheet; sólo los textos propios de la app (narrativa, bloqueos, etc.) se editan.
+- **`fecha_referencia`** — el día real del check-in (el import). **No es un jueves
+  asumido.** En el histórico, el esperado de esa fila se deriva contra esta fecha.
+- **`semana_inicio`** — sólo **agrupa** a qué semana pertenece la fila. No es la
+  fecha de cálculo; esa es `fecha_referencia`.
+- **Cada métrica es nullable (hueco honesto).** Un squad puede no tener `avanzar` o
+  `discovery` (en el Smartsheet real Empresas no trae nodo Discovery); una métrica
+  también puede venir sin fechas. En esos casos queda en `null` → la UI muestra
+  "No aplica" / "—", no un `0` que fingiría un valor. El color sale del desvío de
+  `finalizar`; si esa métrica falta, el squad queda sin color.
 
 **Initiative** — una fila por iniciativa/subtarea del import de Smartsheet
 (espejo del export, sólo lectura):
@@ -235,6 +227,16 @@ calendario totales del Q, ambos contados con los dos extremos incluidos. Igual
 para los 8 squads (no depende del squad). Se calcula con la **fecha de
 referencia** de ese snapshot (el día del check-in, cualquiera sea — no hay jueves
 fijo).
+
+> **Actualización — esperado fiel al Smartsheet.** Esta fórmula por trimestre se
+> conserva **sólo para el KPI "Esperado" del portafolio** (informe general, a
+> confirmar con Dai). El esperado **por squad** (delivery = Priorizado Finalizar, y
+> discovery), con su desvío y color, ya **no** usa este cálculo: usa
+> `esperadoDesdeFechas` (dominio), que replica la fórmula del Smartsheet por nodo —
+> `si hoy < inicio → 0; si no → min(1, (hoy − inicio) / (fin − inicio))`, días de
+> calendario **sin +1**, contra las fechas planificadas de esa fila. Se **deriva al
+> leer** (a hoy con la fecha real; en el histórico con la de la semana), no se
+> persiste.
 
 ```
 esperadoPct(hoy, { inicio, fin }):
