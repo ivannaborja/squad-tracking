@@ -1,8 +1,7 @@
-import { esperadoPct } from '../../domain/esperadoPct';
+import { esperadoDesdeFechas } from '../../domain/esperadoFechas';
 import { delta } from '../../domain/delta';
 import { semaforo as calcSemaforo } from '../../domain/semaforo';
 import type { Semaforo } from '../../domain/types';
-import type { Trimestre } from './quarters';
 import type {
   AHoy,
   Collections,
@@ -14,21 +13,50 @@ import type {
   UnplannedIntakeItem,
 } from './types';
 
-// Esperado y brechas recalculados contra la fecha pedida. Sólo cuenta de fechas:
-// no toca el color, que es el persistido. Sin reales todavía, las brechas van null.
-export function calcAHoy(
-  deliveryRealPct: number | null,
-  discoveryRealPct: number | null,
-  date: string,
-  trimestre: Trimestre
-): AHoy {
-  const esperado = esperadoPct(date, { inicio: trimestre.inicio, fin: trimestre.fin });
+// Los valores mostrables derivados de un snapshot contra una fecha. Espejo fiel:
+// nada de esto se guarda, se calcula al leer. `delivery` es la métrica "Priorizado
+// Finalizar" (lo comprometido que pinta el color); `discovery`, su propio nodo. El
+// esperado sale de las fechas del nodo (fórmula del Smartsheet), el desvío es
+// real − esperado, y el color del desvío de delivery. Todo puede ser null si falta
+// el real o las fechas (hueco honesto).
+export interface Derivado {
+  deliveryRealPct: number | null;
+  discoveryRealPct: number | null;
+  esperadoPct: number | null;
+  deliveryDeltaPct: number | null;
+  discoveryDeltaPct: number | null;
+  semaforo: Semaforo | null;
+}
+
+export function derivar(snap: PersistedSnapshot, date: string): Derivado {
+  const deliveryEsperado = esperadoDesdeFechas(date, snap.finalizar.inicio, snap.finalizar.fin);
+  const deliveryRealPct = snap.finalizar.real;
+  const deliveryDeltaPct =
+    deliveryRealPct !== null && deliveryEsperado !== null ? delta(deliveryRealPct, deliveryEsperado) : null;
+
+  const discoveryRealPct = snap.discovery?.real ?? null;
+  const discoveryEsperado = snap.discovery
+    ? esperadoDesdeFechas(date, snap.discovery.inicio, snap.discovery.fin)
+    : null;
+  const discoveryDeltaPct =
+    discoveryRealPct !== null && discoveryEsperado !== null ? delta(discoveryRealPct, discoveryEsperado) : null;
+
   return {
-    esperadoPct: esperado,
-    deliveryDeltaPct: deliveryRealPct === null ? null : delta(deliveryRealPct, esperado),
-    discoveryDeltaPct: discoveryRealPct === null ? null : delta(discoveryRealPct, esperado),
+    deliveryRealPct,
+    discoveryRealPct,
+    esperadoPct: deliveryEsperado,
+    deliveryDeltaPct,
+    discoveryDeltaPct,
+    semaforo: deliveryDeltaPct !== null ? calcSemaforo(deliveryDeltaPct) : null,
   };
 }
+
+const AHOY_VACIO: AHoy = { esperadoPct: null, deliveryDeltaPct: null, discoveryDeltaPct: null };
+const aHoyDe = (d: Derivado): AHoy => ({
+  esperadoPct: d.esperadoPct,
+  deliveryDeltaPct: d.deliveryDeltaPct,
+  discoveryDeltaPct: d.discoveryDeltaPct,
+});
 
 // Un squad en rojo esa semana debería tener al menos un Need activo (SDD, fuente
 // real pág. 4). Es advertencia de armado, no bloquea. Need activo = no resuelto
@@ -49,69 +77,54 @@ export function kpiNoPlanificadas(unplannedIntake: UnplannedIntakeItem[]): numbe
   return unplannedIntake.length;
 }
 
-// El color oficial se recomputa sólo en escrituras (write-through) al confirmar un
-// check-in. La regla vive en domain/; hoy sólo depende del delta de delivery.
-export function recomputeSemaforo(deliveryDeltaPct: number): Semaforo {
-  return calcSemaforo(deliveryDeltaPct);
-}
-
 export function assembleSquadReportView(input: {
   squadId: number;
   squadNombre: string;
   snapshot: PersistedSnapshot | null;
   date: string;
-  trimestre: Trimestre; // el Q de la fila (o el del calendario si no hay fila)
   collections: Collections;
   // Los intakes de portafolio del trimestre (todas las squads): alimentan el KPI
   // acumulado, distinto de collections.unplannedIntake (los de la semana de esta
   // squad, para la sección del pre-informe).
   unplannedTrimestre: UnplannedIntakeItem[];
 }): SquadReportView {
-  const { squadId, squadNombre, snapshot, date, trimestre, collections, unplannedTrimestre } =
-    input;
+  const { squadId, squadNombre, snapshot, date, collections, unplannedTrimestre } = input;
 
-  const snapshotView: SnapshotView = snapshot
-    ? {
-        semaforo: snapshot.semaforo,
-        deliveryRealPct: snapshot.deliveryRealPct,
-        discoveryRealPct: snapshot.discoveryRealPct,
-        esperadoPct: snapshot.esperadoPct,
-        deliveryDeltaPct: snapshot.deliveryDeltaPct,
-        discoveryDeltaPct: snapshot.discoveryDeltaPct,
-        trimestre: snapshot.trimestre,
-        semanaInicio: snapshot.semanaInicio,
-        frasePronostico: snapshot.frasePronostico,
-        editadoPor: snapshot.editadoPor,
-      }
-    : {
-        semaforo: null,
-        deliveryRealPct: null,
-        discoveryRealPct: null,
-        esperadoPct: null,
-        deliveryDeltaPct: null,
-        discoveryDeltaPct: null,
-        trimestre: null,
-        semanaInicio: null,
-        frasePronostico: null,
-        editadoPor: null,
-      };
+  const d = snapshot ? derivar(snapshot, date) : null;
+  const snapshotView: SnapshotView =
+    snapshot && d
+      ? {
+          semaforo: d.semaforo,
+          deliveryRealPct: d.deliveryRealPct,
+          discoveryRealPct: d.discoveryRealPct,
+          esperadoPct: d.esperadoPct,
+          deliveryDeltaPct: d.deliveryDeltaPct,
+          discoveryDeltaPct: d.discoveryDeltaPct,
+          trimestre: snapshot.trimestre,
+          semanaInicio: snapshot.semanaInicio,
+          frasePronostico: snapshot.frasePronostico,
+          editadoPor: snapshot.editadoPor,
+        }
+      : {
+          semaforo: null,
+          deliveryRealPct: null,
+          discoveryRealPct: null,
+          esperadoPct: null,
+          deliveryDeltaPct: null,
+          discoveryDeltaPct: null,
+          trimestre: null,
+          semanaInicio: null,
+          frasePronostico: null,
+          editadoPor: null,
+        };
 
   return {
     squadId,
     squadNombre,
     snapshot: snapshotView,
     datosDe: snapshot?.fechaReferencia ?? null,
-    aHoy: calcAHoy(
-      snapshot?.deliveryRealPct ?? null,
-      snapshot?.discoveryRealPct ?? null,
-      date,
-      trimestre
-    ),
-    avisoRojoSinNeed: avisoRojoSinNeed(
-      snapshotView.semaforo,
-      collections.needs,
-      snapshotView.semanaInicio
-    ),
+    aHoy: d ? aHoyDe(d) : AHOY_VACIO,
+    avisoRojoSinNeed: avisoRojoSinNeed(snapshotView.semaforo, collections.needs, snapshotView.semanaInicio),
     kpiNoPlanificadas: kpiNoPlanificadas(unplannedTrimestre),
     collections,
   };
@@ -122,24 +135,19 @@ export function assembleCompact(input: {
   squadNombre: string;
   snapshot: PersistedSnapshot | null;
   date: string;
-  trimestre: Trimestre;
 }): SquadReportViewCompact {
-  const { squadId, squadNombre, snapshot, date, trimestre } = input;
+  const { squadId, squadNombre, snapshot, date } = input;
+  const d = snapshot ? derivar(snapshot, date) : null;
   return {
     squadId,
     squadNombre,
-    semaforo: snapshot?.semaforo ?? null,
-    deliveryRealPct: snapshot?.deliveryRealPct ?? null,
-    discoveryRealPct: snapshot?.discoveryRealPct ?? null,
-    deliveryDeltaPct: snapshot?.deliveryDeltaPct ?? null,
-    discoveryDeltaPct: snapshot?.discoveryDeltaPct ?? null,
+    semaforo: d?.semaforo ?? null,
+    deliveryRealPct: d?.deliveryRealPct ?? null,
+    discoveryRealPct: d?.discoveryRealPct ?? null,
+    deliveryDeltaPct: d?.deliveryDeltaPct ?? null,
+    discoveryDeltaPct: d?.discoveryDeltaPct ?? null,
     frasePronostico: snapshot?.frasePronostico ?? null,
     datosDe: snapshot?.fechaReferencia ?? null,
-    aHoy: calcAHoy(
-      snapshot?.deliveryRealPct ?? null,
-      snapshot?.discoveryRealPct ?? null,
-      date,
-      trimestre
-    ),
+    aHoy: d ? aHoyDe(d) : AHOY_VACIO,
   };
 }

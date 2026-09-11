@@ -1,9 +1,9 @@
 import { prisma } from '../../lib/prisma';
-import type { Semaforo } from '../../domain/types';
 import { resolverTrimestre, trimestreDeFecha } from './quarters';
-import { assembleCompact, assembleSquadReportView, recomputeSemaforo } from './assemble';
+import { assembleCompact, assembleSquadReportView } from './assemble';
 import type {
   Collections,
+  MetricaPersistida,
   PersistedSnapshot,
   SquadReportView,
   SquadReportViewCompact,
@@ -23,14 +23,22 @@ function ultimoSnapshot(squadId: number) {
 
 type SnapshotRow = NonNullable<Awaited<ReturnType<typeof ultimoSnapshot>>>;
 
+const metrica = (real: number | null, inicio: Date | null, fin: Date | null): MetricaPersistida => ({
+  real,
+  inicio: isoN(inicio),
+  fin: isoN(fin),
+});
+// Una métrica se considera ausente (null → "No aplica") sólo si no trae ni % ni
+// fechas; con cualquier dato se conserva para poder derivar/avisar el hueco.
+const metricaOpt = (real: number | null, inicio: Date | null, fin: Date | null): MetricaPersistida | null =>
+  real === null && inicio === null && fin === null ? null : metrica(real, inicio, fin);
+
 function normalizar(row: SnapshotRow): PersistedSnapshot {
   return {
-    semaforo: row.semaforo as Semaforo,
-    deliveryRealPct: row.deliveryRealPct,
-    discoveryRealPct: row.discoveryRealPct,
-    esperadoPct: row.esperadoPct,
-    deliveryDeltaPct: row.deliveryDeltaPct,
-    discoveryDeltaPct: row.discoveryDeltaPct,
+    q3Total: metrica(row.q3TotalReal, row.q3TotalInicio, row.q3TotalFin),
+    finalizar: metrica(row.finalizarReal, row.finalizarInicio, row.finalizarFin),
+    avanzar: metricaOpt(row.avanzarReal, row.avanzarInicio, row.avanzarFin),
+    discovery: metricaOpt(row.discoveryReal, row.discoveryInicio, row.discoveryFin),
     trimestre: row.trimestre,
     semanaInicio: iso(row.semanaInicio),
     fechaReferencia: iso(row.fechaReferencia),
@@ -140,7 +148,6 @@ export async function getSquadReportView(
     squadNombre: squad.nombre,
     snapshot,
     date,
-    trimestre: tri,
     collections,
     unplannedTrimestre: unplannedTrimestre.map((u) => ({
       id: u.id,
@@ -167,7 +174,6 @@ export async function getOverview(date: string): Promise<SquadReportViewCompact[
         squadNombre: squad.nombre,
         snapshot,
         date,
-        trimestre: trimestreVigente(snapshot, date),
       });
     })
   );
@@ -185,18 +191,6 @@ export async function getHistory(squadId: number, from?: string, to?: string) {
     orderBy: { fechaReferencia: 'asc' },
   });
   return rows.map(normalizar);
-}
-
-// Write-through: recomputa y REESCRIBE el color de la fila más reciente. Lo llama
-// la escritura de check-in; los reads nunca lo tocan. Devuelve el color nuevo, o
-// null si el squad no tiene fila. Hoy el color sólo depende del delta de delivery.
-export async function persistRecomputedSemaforo(squadId: number): Promise<Semaforo | null> {
-  const row = await ultimoSnapshot(squadId);
-  if (!row) return null;
-
-  const color = recomputeSemaforo(row.deliveryDeltaPct);
-  await prisma.squadSnapshot.update({ where: { id: row.id }, data: { semaforo: color } });
-  return color;
 }
 
 // Las colecciones semanales se acotan a la semana de la fila leída; sin fila, no

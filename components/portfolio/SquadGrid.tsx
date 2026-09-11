@@ -25,7 +25,7 @@ export function SquadGrid({ squads }: { squads: SquadReportViewCompact[] }) {
                   <span>Esperado a hoy</span>
                   <Mono style={{ fontWeight: 500, color: C.gray900 }}>{fmtPct(s.aHoy.esperadoPct)}</Mono>
                 </div>
-                <ProgressBar pct={s.aHoy.esperadoPct} />
+                <ProgressBar pct={s.aHoy.esperadoPct ?? 0} />
               </div>
 
               <div style={{ display: 'flex', gap: 20, paddingTop: 4, borderTop: `1px solid ${C.gray200}` }}>

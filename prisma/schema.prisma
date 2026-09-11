@@ -31,23 +31,33 @@ model Squad {
 }
 
 model SquadSnapshot {
-  id                      Int      @id @default(autoincrement())
-  squadId                 Int      @map("squad_id")
-  semanaInicio            DateTime @map("semana_inicio") @db.Date
-  fechaReferencia         DateTime @map("fecha_referencia") @db.Date
-  trimestre               String
-  deliveryRealPct         Float    @map("delivery_real_pct")
-  // Nullable: un squad solo-delivery (ej. Empresas, sin nodo Discovery en
-  // Smartsheet) no tiene discovery. Null honesto, no un 0 que fingiría brecha.
-  discoveryRealPct        Float?   @map("discovery_real_pct")
-  deliveryManualOverride  Boolean  @default(false) @map("delivery_manual_override")
-  discoveryManualOverride Boolean  @default(false) @map("discovery_manual_override")
-  esperadoPct             Float    @map("esperado_pct")
-  deliveryDeltaPct        Float    @map("delivery_delta_pct")
-  discoveryDeltaPct       Float?   @map("discovery_delta_pct")
-  semaforo                String
-  frasePronostico         String?  @map("frase_pronostico")
-  editadoPor              String   @map("editado_por")
+  id              Int      @id @default(autoincrement())
+  squadId         Int      @map("squad_id")
+  semanaInicio    DateTime @map("semana_inicio") @db.Date
+  fechaReferencia DateTime @map("fecha_referencia") @db.Date
+  trimestre       String
+
+  // Espejo fiel del Smartsheet: por cada métrica del Q en curso se guarda sólo el
+  // %real y las fechas planificadas (inicio/fin) del nodo. El esperado, el desvío
+  // y el color NO se guardan: son cálculo puro que se deriva al leer con
+  // esperadoDesdeFechas — a hoy con la fecha real (como el TODAY() del Smartsheet),
+  // en el histórico con la fecha de la semana. Todo nullable: una métrica ausente
+  // (un squad sin Avanzar o sin Discovery, o fechas sin cargar) es un hueco honesto.
+  q3TotalReal     Float?    @map("q3_total_real")
+  q3TotalInicio   DateTime? @map("q3_total_inicio") @db.Date
+  q3TotalFin      DateTime? @map("q3_total_fin") @db.Date
+  finalizarReal   Float?    @map("finalizar_real")
+  finalizarInicio DateTime? @map("finalizar_inicio") @db.Date
+  finalizarFin    DateTime? @map("finalizar_fin") @db.Date
+  avanzarReal     Float?    @map("avanzar_real")
+  avanzarInicio   DateTime? @map("avanzar_inicio") @db.Date
+  avanzarFin      DateTime? @map("avanzar_fin") @db.Date
+  discoveryReal   Float?    @map("discovery_real")
+  discoveryInicio DateTime? @map("discovery_inicio") @db.Date
+  discoveryFin    DateTime? @map("discovery_fin") @db.Date
+
+  frasePronostico String?  @map("frase_pronostico")
+  editadoPor      String   @map("editado_por")
 
   squad Squad @relation(fields: [squadId], references: [id])
 

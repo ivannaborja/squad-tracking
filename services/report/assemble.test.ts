@@ -3,14 +3,16 @@ import {
   assembleCompact,
   assembleSquadReportView,
   avisoRojoSinNeed,
-  calcAHoy,
+  derivar,
   kpiNoPlanificadas,
-  recomputeSemaforo,
 } from './assemble';
 import { resolverTrimestre, trimestreDeFecha } from './quarters';
 import type { Collections, NeedItem, PersistedSnapshot } from './types';
 
 const Q3 = resolverTrimestre('Q3-2026');
+
+// Esperado de referencia: del 1/7 al 14/8 hay 44 días; el tramo 1/7→30/9 son 91.
+const ESP = 44 / 91;
 
 const vacias: Collections = {
   bloqueos: [],
@@ -22,12 +24,10 @@ const vacias: Collections = {
 };
 
 const snapshotBase: PersistedSnapshot = {
-  semaforo: 'verde',
-  deliveryRealPct: 0.56,
-  discoveryRealPct: 0.4,
-  esperadoPct: 0.5,
-  deliveryDeltaPct: 0.06,
-  discoveryDeltaPct: -0.1,
+  q3Total: { real: 0.6, inicio: '2026-07-01', fin: '2026-09-30' },
+  finalizar: { real: 0.56, inicio: '2026-07-01', fin: '2026-09-30' },
+  avanzar: { real: 0.3, inicio: '2026-07-01', fin: '2026-09-30' },
+  discovery: { real: 0.4, inicio: '2026-07-01', fin: '2026-09-30' },
   trimestre: 'Q3-2026',
   semanaInicio: '2026-08-11',
   fechaReferencia: '2026-08-14',
@@ -39,25 +39,39 @@ describe('quarters', () => {
   it('deriva las fechas del Q desde el label', () => {
     expect(Q3).toEqual({ inicio: '2026-07-01', fin: '2026-09-30' });
   });
-
   it('deriva el label del Q desde una fecha', () => {
     expect(trimestreDeFecha('2026-08-14')).toBe('Q3-2026');
   });
 });
 
-describe('calcAHoy', () => {
-  it('con reales, esperado ~0.5 y brechas contra ese esperado', () => {
-    const a = calcAHoy(0.56, 0.39, '2026-08-14', Q3);
-    expect(a.esperadoPct).toBeCloseTo(0.5, 1);
-    expect(a.deliveryDeltaPct).toBeCloseTo(0.56 - a.esperadoPct, 5);
-    expect(a.discoveryDeltaPct).toBeCloseTo(0.39 - a.esperadoPct, 5);
+describe('derivar', () => {
+  it('delivery = Finalizar, esperado por fechas del nodo, color del desvío', () => {
+    const d = derivar(snapshotBase, '2026-08-14');
+    expect(d.deliveryRealPct).toBe(0.56);
+    expect(d.discoveryRealPct).toBe(0.4);
+    expect(d.esperadoPct).toBeCloseTo(ESP, 4);
+    expect(d.deliveryDeltaPct).toBeCloseTo(0.56 - ESP, 5);
+    expect(d.discoveryDeltaPct).toBeCloseTo(0.4 - ESP, 5);
+    expect(d.semaforo).toBe('verde'); // 0.56 ≥ esperado
   });
 
-  it('sin reales, esperado presente pero brechas null', () => {
-    const a = calcAHoy(null, null, '2026-08-14', Q3);
-    expect(a.esperadoPct).toBeGreaterThan(0);
-    expect(a.deliveryDeltaPct).toBeNull();
-    expect(a.discoveryDeltaPct).toBeNull();
+  it('sin fechas de Finalizar: esperado/desvío/color null, pero el real se conserva', () => {
+    const d = derivar({ ...snapshotBase, finalizar: { real: 0.56, inicio: null, fin: null } }, '2026-08-14');
+    expect(d.deliveryRealPct).toBe(0.56);
+    expect(d.esperadoPct).toBeNull();
+    expect(d.deliveryDeltaPct).toBeNull();
+    expect(d.semaforo).toBeNull();
+  });
+
+  it('sin discovery (null): real y desvío de discovery null', () => {
+    const d = derivar({ ...snapshotBase, discovery: null }, '2026-08-14');
+    expect(d.discoveryRealPct).toBeNull();
+    expect(d.discoveryDeltaPct).toBeNull();
+  });
+
+  it('amarillo cuando delivery quedó por debajo del esperado', () => {
+    const d = derivar({ ...snapshotBase, finalizar: { real: 0.1, inicio: '2026-07-01', fin: '2026-09-30' } }, '2026-08-14');
+    expect(d.semaforo).toBe('amarillo');
   });
 });
 
@@ -89,15 +103,6 @@ describe('avisoRojoSinNeed', () => {
   });
 });
 
-describe('recomputeSemaforo (write-through)', () => {
-  it('delta negativo → amarillo', () => {
-    expect(recomputeSemaforo(-0.11)).toBe('amarillo');
-  });
-  it('delta no negativo → verde', () => {
-    expect(recomputeSemaforo(0.06)).toBe('verde');
-  });
-});
-
 describe('kpiNoPlanificadas', () => {
   it('cuenta los intakes no planificados', () => {
     expect(
@@ -116,33 +121,30 @@ describe('assembleSquadReportView', () => {
       squadNombre: 'Adquirencia',
       snapshot: snapshotBase,
       date: '2026-08-14',
-      trimestre: Q3,
       collections: vacias,
       unplannedTrimestre: [],
     });
     expect(v.snapshot.semaforo).toBe('verde');
     expect(v.datosDe).toBe('2026-08-14');
-    expect(v.aHoy.esperadoPct).toBeCloseTo(0.5, 1);
+    expect(v.aHoy.esperadoPct).toBeCloseTo(ESP, 4);
   });
 
-  it('sin snapshot devuelve nulls pero igual el bloque a_hoy', () => {
+  it('sin snapshot devuelve nulls y el bloque a_hoy vacío', () => {
     const v = assembleSquadReportView({
       squadId: 5,
       squadNombre: 'Adquirencia',
       snapshot: null,
       date: '2026-08-14',
-      trimestre: Q3,
       collections: vacias,
       unplannedTrimestre: [],
     });
     expect(v.snapshot.semaforo).toBeNull();
     expect(v.datosDe).toBeNull();
-    expect(v.aHoy.esperadoPct).toBeGreaterThan(0);
+    expect(v.aHoy.esperadoPct).toBeNull();
     expect(v.avisoRojoSinNeed).toBe(false);
   });
 
   it('el KPI no planificadas cuenta el trimestre, no la semana', () => {
-    // La sección muestra la semana (1 intake); el KPI acumula el Q (3 intakes).
     const semanal = {
       ...vacias,
       unplannedIntake: [{ id: 1, descripcion: 'de la semana', semanaInicio: '2026-08-11' }],
@@ -157,7 +159,6 @@ describe('assembleSquadReportView', () => {
       squadNombre: 'Adquirencia',
       snapshot: snapshotBase,
       date: '2026-08-14',
-      trimestre: Q3,
       collections: semanal,
       unplannedTrimestre: trimestral,
     });
@@ -167,16 +168,15 @@ describe('assembleSquadReportView', () => {
 });
 
 describe('assembleCompact', () => {
-  it('proyección resumida con color persistido y a_hoy', () => {
+  it('proyección resumida con color derivado y a_hoy', () => {
     const c = assembleCompact({
       squadId: 5,
       squadNombre: 'Adquirencia',
       snapshot: snapshotBase,
       date: '2026-08-14',
-      trimestre: Q3,
     });
     expect(c.semaforo).toBe('verde');
-    expect(c.deliveryDeltaPct).toBe(0.06);
-    expect(c.aHoy.esperadoPct).toBeCloseTo(0.5, 1);
+    expect(c.deliveryDeltaPct).toBeCloseTo(0.56 - ESP, 5);
+    expect(c.aHoy.esperadoPct).toBeCloseTo(ESP, 4);
   });
 });
