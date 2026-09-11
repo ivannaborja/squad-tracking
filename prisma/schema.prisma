@@ -206,18 +206,6 @@ model UnplannedIntake {
   @@map("unplanned_intake")
 }
 
-// Staging del import de dos fases. Vive en Postgres, no en memoria de proceso:
-// en Vercel serverless el POST /api/import y el confirm posterior pueden caer en
-// instancias distintas, así que la memoria no alcanza para retener el batch.
-model ImportStaging {
-  token     String   @id
-  payload   Json
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  @@map("import_staging")
-}
-
 // Narrativa del informe ejecutivo GENERAL (portafolio) por semana. La escribe Dai
 // a mano; ninguno de estos campos se auto-genera. Una fila por semana.
 // pases_planificados es el KPI 4 (número que Dai maneja verbalmente, no cálculo).
