@@ -20,12 +20,9 @@ export function SquadGrid({ squads }: { squads: SquadReportViewCompact[] }) {
                 <SemaforoBadge semaforo={s.semaforo} />
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.gray600 }}>
-                  <span>Esperado del Q (a hoy)</span>
-                  <Mono style={{ fontWeight: 500, color: C.gray900 }}>{fmtPct(s.aHoy.esperadoPct)}</Mono>
-                </div>
-                <ProgressBar pct={s.aHoy.esperadoPct ?? 0} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <BarraEsperado label="Esperado del Q (a hoy)" pct={s.aHoy.esperadoPct} color={C.navy700} />
+                <BarraEsperado label="Esperado priorizado" pct={s.aHoy.esperadoPriorizadoPct} color={C.navy500} />
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingTop: 10, borderTop: `1px solid ${C.gray200}` }}>
@@ -49,6 +46,21 @@ export function SquadGrid({ squads }: { squads: SquadReportViewCompact[] }) {
           </Card>
         </Link>
       ))}
+    </div>
+  );
+}
+
+// Una barra de esperado con su etiqueta y valor. Dos por card: la del Q (define el
+// color del squad) y la del priorizado (por fechas), pintadas distinto para
+// distinguirlas. Sin dato (ej. priorizado sin fechas), muestra "—" y barra vacía.
+function BarraEsperado({ label, pct, color }: { label: string; pct: number | null; color: string }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.gray600 }}>
+        <span>{label}</span>
+        <Mono style={{ fontWeight: 500, color: C.gray900 }}>{fmtPct(pct)}</Mono>
+      </div>
+      <ProgressBar pct={pct ?? 0} color={color} />
     </div>
   );
 }
