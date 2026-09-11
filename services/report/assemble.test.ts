@@ -11,8 +11,11 @@ import type { Collections, NeedItem, PersistedSnapshot } from './types';
 
 const Q3 = resolverTrimestre('Q3-2026');
 
-// Esperado de referencia: del 1/7 al 14/8 hay 44 días; el tramo 1/7→30/9 son 91.
-const ESP = 44 / 91;
+// Esperados de referencia a 2026-08-14 con el Q3 (1/7→30/9):
+//  - del Q (esperadoPct, días inclusivos +1): 45/92
+//  - priorizado (por fechas del nodo, sin +1): 44/91
+const ESP_Q = 45 / 92;
+const ESP_PRIOR = 44 / 91;
 
 const vacias: Collections = {
   bloqueos: [],
@@ -45,22 +48,27 @@ describe('quarters', () => {
 });
 
 describe('derivar', () => {
-  it('delivery = Finalizar, esperado por fechas del nodo, color del desvío', () => {
+  it('desvío y color vs el esperado del Q; el priorizado (por fechas) va como extra', () => {
     const d = derivar(snapshotBase, '2026-08-14');
     expect(d.deliveryRealPct).toBe(0.56);
     expect(d.discoveryRealPct).toBe(0.4);
-    expect(d.esperadoPct).toBeCloseTo(ESP, 4);
-    expect(d.deliveryDeltaPct).toBeCloseTo(0.56 - ESP, 5);
-    expect(d.discoveryDeltaPct).toBeCloseTo(0.4 - ESP, 5);
-    expect(d.semaforo).toBe('verde'); // 0.56 ≥ esperado
+    // esperado del Q (define el color) y esperado priorizado (dato extra)
+    expect(d.esperadoPct).toBeCloseTo(ESP_Q, 4);
+    expect(d.esperadoPriorizadoPct).toBeCloseTo(ESP_PRIOR, 4);
+    // desvíos: delivery/discovery vs Q; y delivery vs priorizado aparte
+    expect(d.deliveryDeltaPct).toBeCloseTo(0.56 - ESP_Q, 5);
+    expect(d.discoveryDeltaPct).toBeCloseTo(0.4 - ESP_Q, 5);
+    expect(d.deliveryDeltaPriorizadoPct).toBeCloseTo(0.56 - ESP_PRIOR, 5);
+    expect(d.semaforo).toBe('verde'); // 0.56 ≥ esperado del Q
   });
 
-  it('sin fechas de Finalizar: esperado/desvío/color null, pero el real se conserva', () => {
+  it('sin fechas de Finalizar: el esperado del Q y el color siguen (no dependen de las fechas); el priorizado queda null', () => {
     const d = derivar({ ...snapshotBase, finalizar: { real: 0.56, inicio: null, fin: null } }, '2026-08-14');
     expect(d.deliveryRealPct).toBe(0.56);
-    expect(d.esperadoPct).toBeNull();
-    expect(d.deliveryDeltaPct).toBeNull();
-    expect(d.semaforo).toBeNull();
+    expect(d.esperadoPct).toBeCloseTo(ESP_Q, 4); // el del Q no depende de las fechas del nodo
+    expect(d.esperadoPriorizadoPct).toBeNull();
+    expect(d.deliveryDeltaPriorizadoPct).toBeNull();
+    expect(d.semaforo).toBe('verde');
   });
 
   it('sin discovery (null): real y desvío de discovery null', () => {
@@ -69,7 +77,7 @@ describe('derivar', () => {
     expect(d.discoveryDeltaPct).toBeNull();
   });
 
-  it('amarillo cuando delivery quedó por debajo del esperado', () => {
+  it('amarillo cuando delivery quedó por debajo del esperado del Q', () => {
     const d = derivar({ ...snapshotBase, finalizar: { real: 0.1, inicio: '2026-07-01', fin: '2026-09-30' } }, '2026-08-14');
     expect(d.semaforo).toBe('amarillo');
   });
@@ -126,7 +134,7 @@ describe('assembleSquadReportView', () => {
     });
     expect(v.snapshot.semaforo).toBe('verde');
     expect(v.datosDe).toBe('2026-08-14');
-    expect(v.aHoy.esperadoPct).toBeCloseTo(ESP, 4);
+    expect(v.aHoy.esperadoPct).toBeCloseTo(ESP_Q, 4);
   });
 
   it('sin snapshot devuelve nulls y el bloque a_hoy vacío', () => {
@@ -176,7 +184,7 @@ describe('assembleCompact', () => {
       date: '2026-08-14',
     });
     expect(c.semaforo).toBe('verde');
-    expect(c.deliveryDeltaPct).toBeCloseTo(0.56 - ESP, 5);
-    expect(c.aHoy.esperadoPct).toBeCloseTo(ESP, 4);
+    expect(c.deliveryDeltaPct).toBeCloseTo(0.56 - ESP_Q, 5);
+    expect(c.aHoy.esperadoPct).toBeCloseTo(ESP_Q, 4);
   });
 });

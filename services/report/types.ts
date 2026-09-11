@@ -4,9 +4,16 @@ import type { Semaforo } from '../../domain/types';
 // no algo persistido (ver SDD). esperadoPct null cuando la métrica de delivery
 // (Finalizar) no tiene fechas cargadas; los deltas null sin real o sin esperado.
 export interface AHoy {
+  // Esperado del trimestre (días de calendario del Q), como la bitácora de Dai.
+  // Es el que define el desvío y el color. Igual para todos los squads.
   esperadoPct: number | null;
+  // Esperado del Priorizado Finalizar por sus fechas (Smartsheet %Avance Esperado):
+  // distinto por squad. Es dato informativo, no define el color.
+  esperadoPriorizadoPct: number | null;
+  // Desvíos del comprometido: vs el esperado del Q (el oficial) y vs el priorizado.
   deliveryDeltaPct: number | null;
   discoveryDeltaPct: number | null;
+  deliveryDeltaPriorizadoPct: number | null;
 }
 
 // Una métrica cruda del Smartsheet tal como se persiste: el %real del nodo y sus
@@ -102,9 +109,11 @@ export interface SnapshotView {
   semaforo: Semaforo | null;
   deliveryRealPct: number | null;
   discoveryRealPct: number | null;
-  esperadoPct: number | null;
-  deliveryDeltaPct: number | null;
-  discoveryDeltaPct: number | null;
+  esperadoPct: number | null; // del Q
+  esperadoPriorizadoPct: number | null; // por fechas del Finalizar
+  deliveryDeltaPct: number | null; // vs Q
+  discoveryDeltaPct: number | null; // vs Q
+  deliveryDeltaPriorizadoPct: number | null; // vs priorizado
   trimestre: string | null;
   semanaInicio: string | null;
   frasePronostico: string | null;
@@ -131,8 +140,9 @@ export interface SquadReportViewCompact {
   // % comprometido (avance real persistido) del squad, para mostrarlo junto al delta.
   deliveryRealPct: number | null;
   discoveryRealPct: number | null;
-  deliveryDeltaPct: number | null;
-  discoveryDeltaPct: number | null;
+  deliveryDeltaPct: number | null; // vs Q
+  discoveryDeltaPct: number | null; // vs Q
+  deliveryDeltaPriorizadoPct: number | null; // vs priorizado (dato extra)
   frasePronostico: string | null;
   datosDe: string | null;
   aHoy: AHoy;
