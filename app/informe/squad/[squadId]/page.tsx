@@ -58,7 +58,12 @@ export default async function InformeSquad({ params }: { params: Promise<{ squad
 
           {/* Las 4 métricas del Q del squad, arriba junto a los KPIs, antes de Bloqueos. */}
           <Bloque title="Métricas del Q">
-            <PanelMetricas metricas={view.metricas} />
+            <PanelMetricas
+              metricas={view.metricas}
+              esperadoQ={view.esperadoQPct}
+              deliveryDeltaQ={view.deliveryDeltaQPct}
+              discoveryDeltaQ={view.discoveryDeltaQPct}
+            />
           </Bloque>
 
           {/* Bloqueos: aparte de los riesgos y prominentes, arriba de todo. */}

@@ -110,6 +110,11 @@ export interface InformeSquadView {
   datosDe: string | null;
   // Las 4 métricas del Q en curso (comprometido Finalizar define el color).
   metricas: MetricasVista;
+  // Resumen "a hoy" contra el esperado del Q (lo que Dai reporta): el esperado del
+  // trimestre y los desvíos oficiales de delivery/discovery. Para el encabezado del panel.
+  esperadoQPct: number | null;
+  deliveryDeltaQPct: number | null;
+  discoveryDeltaQPct: number | null;
   kpis: InformeKpis;
   trend: TrendPoint[];
   narrativa: {
@@ -239,13 +244,13 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
   if (!squad) return null;
 
   const historia = await getHistory(squadId); // orden ascendente por fecha_referencia
-  // Tendencia del squad: delivery = Priorizado Finalizar; el esperado sale de las
-  // fechas de ese nodo (fórmula del Smartsheet), congelado con la fecha de la semana.
+  // Tendencia del squad: delivery = Priorizado Finalizar; el esperado es el del Q
+  // (como la bitácora de Dai), congelado con la fecha de la semana.
   const trend: TrendPoint[] = historia.map((h) => ({
     semanaInicio: h.semanaInicio,
     deliveryPct: h.finalizar.real,
     discoveryPct: h.discovery?.real ?? null,
-    esperadoPct: esperadoDesdeFechas(h.fechaReferencia, h.finalizar.inicio, h.finalizar.fin),
+    esperadoPct: esperadoPct(h.fechaReferencia, resolverTrimestre(trimestreDeFecha(h.fechaReferencia))),
   }));
   const ultima = trend.at(-1) ?? null;
   const previa = trend.length >= 2 ? trend[trend.length - 2] : null;
@@ -274,6 +279,7 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
   ]);
 
   const ultimoSnap = historia.at(-1) ?? null;
+  const dHoy = ultimoSnap ? derivar(ultimoSnap, date) : null;
 
   // Las 4 métricas del Q, derivadas a hoy. q3Total y finalizar siempre están (aunque
   // con real null); avanzar/discovery son null si el squad no las tiene.
@@ -291,9 +297,12 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
     squadNombre: squad.nombre,
     semanaInicio,
     informeId: informe?.id ?? null,
-    semaforo: ultimoSnap ? derivar(ultimoSnap, date).semaforo : null,
+    semaforo: dHoy?.semaforo ?? null,
     datosDe: ultimoSnap?.fechaReferencia ?? null,
     metricas,
+    esperadoQPct: dHoy?.esperadoPct ?? null,
+    deliveryDeltaQPct: dHoy?.deliveryDeltaPct ?? null,
+    discoveryDeltaQPct: dHoy?.discoveryDeltaPct ?? null,
     kpis: {
       deliveryPromedio: ultima?.deliveryPct ?? null,
       discoveryPromedio: ultima?.discoveryPct ?? null,

@@ -10,7 +10,17 @@ const brecha = (real: number | null, esperado: number | null): number | null =>
 // (1 decimal, como el Smartsheet), su esperado por fechas y el desvío. "Priorizado
 // Finalizar" es el comprometido que define el color; Avanzar/Discovery pueden no
 // aplicar. Es sólo lectura: la app es copia fiel del Smartsheet.
-export function PanelMetricas({ metricas }: { metricas: MetricasVista }) {
+export function PanelMetricas({
+  metricas,
+  esperadoQ,
+  deliveryDeltaQ,
+  discoveryDeltaQ,
+}: {
+  metricas: MetricasVista;
+  esperadoQ: number | null;
+  deliveryDeltaQ: number | null;
+  discoveryDeltaQ: number | null;
+}) {
   const items: Array<{ label: string; m: MetricaVista | null; principal?: boolean }> = [
     { label: 'Delivery Q3 total', m: metricas.q3Total },
     { label: 'Priorizado Finalizar', m: metricas.finalizar, principal: true },
@@ -18,31 +28,44 @@ export function PanelMetricas({ metricas }: { metricas: MetricasVista }) {
     { label: 'Discovery', m: metricas.discovery },
   ];
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-      {items.map(({ label, m, principal }) => (
-        <Card key={label} style={{ padding: '14px 16px', border: `1px solid ${principal ? C.navy700 : C.gray200}` }}>
-          <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-            {label}
-          </div>
-          {m && m.real !== null ? (
-            <>
-              <Mono style={{ display: 'block', fontSize: 22, fontWeight: 600, color: C.navy900, marginTop: 6 }}>{fmtPct1(m.real)}</Mono>
-              <div style={{ fontSize: 12, color: C.gray600, marginTop: 4 }}>
-                Esperado {fmtPct1(m.esperado)}
-                {m.desvio !== null && (
-                  <>
-                    {' · '}
-                    <Mono style={{ color: deltaColor(m.desvio), fontWeight: 600 }}>{fmtPp(m.desvio)}</Mono>
-                  </>
-                )}
-              </div>
-            </>
-          ) : (
-            <div style={{ fontSize: 14, color: C.gray400, marginTop: 8 }}>No aplica</div>
-          )}
-        </Card>
-      ))}
-    </div>
+    <>
+      {/* El esperado del Q (el que Dai reporta y define el color) va arriba, separado
+          del "por fechas" de cada nodo que se muestra en cada tarjeta. */}
+      <div style={{ fontSize: 13, color: C.gray600, marginBottom: 12 }}>
+        Esperado del Q (a hoy): <Mono style={{ fontWeight: 600, color: C.navy900 }}>{fmtPct1(esperadoQ)}</Mono>
+        {'  ·  '}Delivery vs Q <Mono style={{ color: deltaColor(deliveryDeltaQ), fontWeight: 600 }}>{fmtPp(deliveryDeltaQ)}</Mono>
+        {discoveryDeltaQ !== null && (
+          <>
+            {'  ·  '}Discovery vs Q <Mono style={{ color: deltaColor(discoveryDeltaQ), fontWeight: 600 }}>{fmtPp(discoveryDeltaQ)}</Mono>
+          </>
+        )}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        {items.map(({ label, m, principal }) => (
+          <Card key={label} style={{ padding: '14px 16px', border: `1px solid ${principal ? C.navy700 : C.gray200}` }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              {label}
+            </div>
+            {m && m.real !== null ? (
+              <>
+                <Mono style={{ display: 'block', fontSize: 22, fontWeight: 600, color: C.navy900, marginTop: 6 }}>{fmtPct1(m.real)}</Mono>
+                <div style={{ fontSize: 12, color: C.gray600, marginTop: 4 }}>
+                  Esperado por fechas {fmtPct1(m.esperado)}
+                  {m.desvio !== null && (
+                    <>
+                      {' · '}
+                      <Mono style={{ color: deltaColor(m.desvio), fontWeight: 600 }}>{fmtPp(m.desvio)}</Mono>
+                    </>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 14, color: C.gray400, marginTop: 8 }}>No aplica</div>
+            )}
+          </Card>
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -58,7 +81,7 @@ export function KpiRow({ kpis, pasesPlanificadosSlot }: { kpis: InformeKpis; pas
         value={fmtPct(deliveryPromedio)}
         sub={
           <>
-            Esperado {fmtPct(esperadoPct)} ·{' '}
+            Esperado del Q {fmtPct(esperadoPct)} ·{' '}
             <Mono style={{ color: deltaColor(brecha(deliveryPromedio, esperadoPct)) }}>{fmtPp(brecha(deliveryPromedio, esperadoPct))}</Mono>
           </>
         }
@@ -68,7 +91,7 @@ export function KpiRow({ kpis, pasesPlanificadosSlot }: { kpis: InformeKpis; pas
         value={fmtPct(discoveryPromedio)}
         sub={
           <>
-            Esperado {fmtPct(esperadoPct)} ·{' '}
+            Esperado del Q {fmtPct(esperadoPct)} ·{' '}
             <Mono style={{ color: deltaColor(brecha(discoveryPromedio, esperadoPct)) }}>{fmtPp(brecha(discoveryPromedio, esperadoPct))}</Mono>
             {discoveryDeltaSemanaAnterior !== null && (
               <>
