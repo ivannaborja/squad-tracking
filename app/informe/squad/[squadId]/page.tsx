@@ -6,7 +6,7 @@ import { Card, SemaforoBadge, Mono, stripeColor } from '../../../../components/d
 import { ExportButton } from '../../../../components/ExportButton';
 import { NavGuardProvider, BackLink } from '../../../../components/informe/NavGuard';
 import { EditModeProvider, EditModeToggle } from '../../../../components/write/EditMode';
-import { KpiRow, Bloque, ListaInforme, BloqueosSection, entregaTexto, needTexto, simpleTexto } from '../../../../components/informe/pieces';
+import { KpiRow, PanelMetricas, Bloque, ListaInforme, BloqueosSection, entregaTexto, needTexto, simpleTexto } from '../../../../components/informe/pieces';
 import { TrendChart } from '../../../../components/informe/TrendChart';
 import { NarrativaEditor } from '../../../../components/informe/NarrativaEditor';
 import { PasesPlanificadosCard } from '../../../../components/informe/PasesPlanificadosCard';
@@ -55,6 +55,11 @@ export default async function InformeSquad({ params }: { params: Promise<{ squad
               <PasesPlanificadosCard endpoint={`/api/informe/squad/${squadId}`} semanaInicio={semana} value={view.kpis.pasesPlanificados} />
             }
           />
+
+          {/* Las 4 métricas del Q del squad, arriba junto a los KPIs, antes de Bloqueos. */}
+          <Bloque title="Métricas del Q">
+            <PanelMetricas metricas={view.metricas} />
+          </Bloque>
 
           {/* Bloqueos: aparte de los riesgos y prominentes, arriba de todo. */}
           <Bloque title="Bloqueos">

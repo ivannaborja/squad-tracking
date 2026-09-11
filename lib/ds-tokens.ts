@@ -55,6 +55,13 @@ export function fmtPct(fraccion: number | null): string {
   return `${Math.round(fraccion * 100)}%`;
 }
 
+// Igual que fmtPct pero con 1 decimal: las métricas por squad tienen que coincidir
+// con lo que muestra el Smartsheet (ej. 64.5%), no redondeado a entero.
+export function fmtPct1(fraccion: number | null): string {
+  if (fraccion === null) return '—';
+  return `${(Math.round(fraccion * 1000) / 10).toFixed(1)}%`;
+}
+
 // Color del texto de una brecha: verde si adelanta, rojo si atrasa, gris en 0.
 export function deltaColor(fraccion: number | null): string {
   if (fraccion === null || fraccion === 0) return C.gray600;

@@ -4,7 +4,9 @@ import { resolverTrimestre, trimestreDeFecha } from './quarters';
 import { getOverview, getHistory } from './reportService';
 import { esperadoPct } from '../../domain/esperadoPct';
 import { esperadoDesdeFechas } from '../../domain/esperadoFechas';
+import { delta } from '../../domain/delta';
 import { derivar } from './assemble';
+import type { MetricaPersistida } from './types';
 
 // Capa de lectura del informe ejecutivo. Agrega lo que ya está en la base
 // (snapshots, iniciativas) en los 4 KPIs y la tendencia, y suma la narrativa que
@@ -83,6 +85,21 @@ export interface BloqueoItem extends SimpleItem {
   hasta: string | null;
 }
 
+// Una métrica del Q lista para mostrar: %real + esperado (derivado de las fechas) +
+// desvío. Todo nullable (hueco honesto: métrica ausente o sin fechas → "No aplica").
+export interface MetricaVista {
+  real: number | null;
+  esperado: number | null;
+  desvio: number | null;
+}
+// Las 4 métricas por squad. avanzar/discovery pueden no existir (null).
+export interface MetricasVista {
+  q3Total: MetricaVista;
+  finalizar: MetricaVista;
+  avanzar: MetricaVista | null;
+  discovery: MetricaVista | null;
+}
+
 export interface InformeSquadView {
   squadId: number;
   squadNombre: string;
@@ -91,6 +108,8 @@ export interface InformeSquadView {
   informeId: number | null;
   semaforo: Semaforo | null;
   datosDe: string | null;
+  // Las 4 métricas del Q en curso (comprometido Finalizar define el color).
+  metricas: MetricasVista;
   kpis: InformeKpis;
   trend: TrendPoint[];
   narrativa: {
@@ -256,6 +275,17 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
 
   const ultimoSnap = historia.at(-1) ?? null;
 
+  // Las 4 métricas del Q, derivadas a hoy. q3Total y finalizar siempre están (aunque
+  // con real null); avanzar/discovery son null si el squad no las tiene.
+  const metricas: MetricasVista = ultimoSnap
+    ? {
+        q3Total: metricaVista(ultimoSnap.q3Total, date),
+        finalizar: metricaVista(ultimoSnap.finalizar, date),
+        avanzar: ultimoSnap.avanzar ? metricaVista(ultimoSnap.avanzar, date) : null,
+        discovery: ultimoSnap.discovery ? metricaVista(ultimoSnap.discovery, date) : null,
+      }
+    : { q3Total: METRICA_VACIA, finalizar: METRICA_VACIA, avanzar: null, discovery: null };
+
   return {
     squadId,
     squadNombre: squad.nombre,
@@ -263,6 +293,7 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
     informeId: informe?.id ?? null,
     semaforo: ultimoSnap ? derivar(ultimoSnap, date).semaforo : null,
     datosDe: ultimoSnap?.fechaReferencia ?? null,
+    metricas,
     kpis: {
       deliveryPromedio: ultima?.deliveryPct ?? null,
       discoveryPromedio: ultima?.discoveryPct ?? null,
@@ -294,6 +325,16 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
       hasta: b.hasta ? iso(b.hasta) : null,
     })),
   };
+}
+
+const METRICA_VACIA: MetricaVista = { real: null, esperado: null, desvio: null };
+
+// Una métrica cruda → lista para mostrar: su esperado sale de las fechas del nodo
+// (fórmula del Smartsheet) contra la fecha pedida; el desvío es real − esperado.
+function metricaVista(m: MetricaPersistida, date: string): MetricaVista {
+  const esperado = esperadoDesdeFechas(date, m.inicio, m.fin);
+  const desvio = m.real !== null && esperado !== null ? delta(m.real, esperado) : null;
+  return { real: m.real, esperado, desvio };
 }
 
 function deltaDiscovery(ultima: TrendPoint | null, previa: TrendPoint | null): number | null {
