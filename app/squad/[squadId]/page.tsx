@@ -74,10 +74,8 @@ export default async function Detalle({ params }: { params: Promise<{ squadId: s
               </div>
             </Card>
 
-            {/* Números de la semana (Delivery/Discovery comprometido). No es una de las
-                7 secciones narrativas; va arriba. */}
+            {/* Números del check-in (Delivery/Discovery comprometido), sólo lectura. */}
             <CheckinSection
-              squadId={squadId}
               snapshot={s}
               aHoy={view.aHoy}
               kpiNoPlanificadas={view.kpiNoPlanificadas}
