@@ -48,27 +48,28 @@ describe('quarters', () => {
 });
 
 describe('derivar', () => {
-  it('desvío y color vs el esperado del Q; el priorizado (por fechas) va como extra', () => {
+  it('desvío vs Q (contexto) y vs priorizado; el color sale del priorizado', () => {
     const d = derivar(snapshotBase, '2026-08-14');
     expect(d.deliveryRealPct).toBe(0.56);
     expect(d.discoveryRealPct).toBe(0.4);
-    // esperado del Q (define el color) y esperado priorizado (dato extra)
+    // esperado del Q (contexto) y esperado priorizado (el oficial, define el color)
     expect(d.esperadoPct).toBeCloseTo(ESP_Q, 4);
     expect(d.esperadoPriorizadoPct).toBeCloseTo(ESP_PRIOR, 4);
-    // desvíos: delivery/discovery vs Q; y delivery vs priorizado aparte
+    // desvíos: delivery/discovery vs Q (contexto); y delivery vs priorizado aparte
     expect(d.deliveryDeltaPct).toBeCloseTo(0.56 - ESP_Q, 5);
     expect(d.discoveryDeltaPct).toBeCloseTo(0.4 - ESP_Q, 5);
     expect(d.deliveryDeltaPriorizadoPct).toBeCloseTo(0.56 - ESP_PRIOR, 5);
-    expect(d.semaforo).toBe('verde'); // 0.56 ≥ esperado del Q
+    expect(d.semaforo).toBe('verde'); // 0.56 ≥ esperado priorizado
   });
 
-  it('sin fechas de Finalizar: el esperado del Q y el color siguen (no dependen de las fechas); el priorizado queda null', () => {
+  it('sin fechas de Finalizar: el esperado del Q sigue (no depende de las fechas), pero el priorizado y el color quedan null (hueco honesto)', () => {
     const d = derivar({ ...snapshotBase, finalizar: { real: 0.56, inicio: null, fin: null } }, '2026-08-14');
     expect(d.deliveryRealPct).toBe(0.56);
     expect(d.esperadoPct).toBeCloseTo(ESP_Q, 4); // el del Q no depende de las fechas del nodo
     expect(d.esperadoPriorizadoPct).toBeNull();
     expect(d.deliveryDeltaPriorizadoPct).toBeNull();
-    expect(d.semaforo).toBe('verde');
+    // Sin priorizado no hay con qué definir el color: null, no se aproxima con el del Q.
+    expect(d.semaforo).toBeNull();
   });
 
   it('sin discovery (null): real y desvío de discovery null', () => {
@@ -77,9 +78,17 @@ describe('derivar', () => {
     expect(d.discoveryDeltaPct).toBeNull();
   });
 
-  it('amarillo cuando delivery quedó por debajo del esperado del Q', () => {
+  it('amarillo cuando delivery quedó por debajo del esperado priorizado', () => {
     const d = derivar({ ...snapshotBase, finalizar: { real: 0.1, inicio: '2026-07-01', fin: '2026-09-30' } }, '2026-08-14');
     expect(d.semaforo).toBe('amarillo');
+  });
+
+  it('verde por priorizado aunque vaya atrasado vs Q: el color no mira el del Q', () => {
+    // Entre ESP_PRIOR (0.4835) y ESP_Q (0.4891): supera el priorizado pero no el Q.
+    const d = derivar({ ...snapshotBase, finalizar: { real: 0.485, inicio: '2026-07-01', fin: '2026-09-30' } }, '2026-08-14');
+    expect(d.deliveryDeltaPriorizadoPct).toBeGreaterThan(0);
+    expect(d.deliveryDeltaPct).toBeLessThan(0);
+    expect(d.semaforo).toBe('verde');
   });
 });
 
