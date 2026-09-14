@@ -40,16 +40,23 @@ export function ImportPanel() {
     if (huboCambios) router.refresh();
   }
 
-  async function subir() {
+  // confirmar=true cuando el usuario ya vio el aviso de "archivo más viejo" y decidió
+  // importar igual; el backend saltea el guard con ese flag.
+  async function subir(confirmar = false) {
     if (!file) return;
     const fd = new FormData();
     fd.append('file', file);
     fd.append('editado_por', 'sistema');
+    if (confirmar) fd.append('confirmar', 'true');
     const r = await mutate<Resultado>({ url: '/api/import', method: 'POST', body: fd, refresh: false });
     if (!r) return;
     setWarnings(r.warnings ?? []);
     setAplicado(r.summary);
   }
+
+  // El backend responde 409 stale_file cuando el .xlsx es más viejo que el último
+  // importado; en vez de error crudo, se ofrece confirmar (mensaje trae las fechas).
+  const esArchivoViejo = error?.code === 'stale_file';
 
   return (
     <>
@@ -61,6 +68,13 @@ export function ImportPanel() {
         <Modal title="Importar (Smartsheet .xlsx)" onClose={aplicado ? cerrar : () => { setOpen(false); reset(); }}>
           {aplicado ? (
             <Aplicado summary={aplicado} warnings={warnings} onClose={cerrar} />
+          ) : esArchivoViejo ? (
+            <ArchivoViejo
+              mensaje={error!.message}
+              pending={pending}
+              onConfirmar={() => subir(true)}
+              onCancelar={() => { setOpen(false); reset(); }}
+            />
           ) : (
             <>
               <p style={{ margin: 0, fontSize: 14, color: C.gray600 }}>
@@ -69,7 +83,7 @@ export function ImportPanel() {
               </p>
               <Dropzone file={file} onFile={setFile} />
               <div style={{ display: 'flex', gap: 8 }}>
-                <Button onClick={subir} disabled={pending || !file}>
+                <Button onClick={() => subir()} disabled={pending || !file}>
                   {pending ? 'Subiendo…' : 'Subir'}
                 </Button>
                 <Button kind="secondary" onClick={() => { setOpen(false); reset(); }} disabled={pending}>
@@ -78,7 +92,7 @@ export function ImportPanel() {
               </div>
             </>
           )}
-          <ErrorText error={error} />
+          {!esArchivoViejo && <ErrorText error={error} />}
         </Modal>
       )}
     </>
@@ -154,6 +168,37 @@ function Dropzone({ file, onFile }: { file: File | null; onFile: (f: File | null
         style={{ display: 'none' }}
       />
     </div>
+  );
+}
+
+// Aviso de re-import viejo: el .xlsx exporta más atrás que el último ya cargado.
+// No es un error de la app sino una salvaguarda; por eso se ofrece seguir igual.
+function ArchivoViejo({
+  mensaje,
+  pending,
+  onConfirmar,
+  onCancelar,
+}: {
+  mensaje: string;
+  pending: boolean;
+  onConfirmar: () => void;
+  onCancelar: () => void;
+}) {
+  return (
+    <>
+      <div style={{ border: `1px solid ${C.amarillo}`, background: C.amarilloBg, borderRadius: 8, padding: '12px 14px' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.amarilloFg }}>Archivo más viejo</div>
+        <p style={{ margin: '6px 0 0', fontSize: 14, color: C.gray900 }}>{mensaje}</p>
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Button onClick={onConfirmar} disabled={pending}>
+          {pending ? 'Subiendo…' : 'Importar igual'}
+        </Button>
+        <Button kind="secondary" onClick={onCancelar} disabled={pending}>
+          Cancelar
+        </Button>
+      </div>
+    </>
   );
 }
 

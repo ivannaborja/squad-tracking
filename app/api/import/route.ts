@@ -11,6 +11,8 @@ export async function POST(request: NextRequest) {
   const form = await request.formData();
   const file = form.get('file');
   const editadoPor = form.get('editado_por');
+  // El usuario ya vio el aviso de "archivo más viejo" y decidió importar igual.
+  const confirmar = form.get('confirmar') === 'true';
 
   if (!(file instanceof File)) return errorJson('bad_request', 'falta el archivo', 400);
   if (typeof editadoPor !== 'string' || !editadoPor) {
@@ -35,9 +37,19 @@ export async function POST(request: NextRequest) {
     return errorJson('invalid_import', 'el archivo no parsea o le faltan columnas', 422);
   }
 
-  const resultado = await procesarImport(source, editadoPor);
+  const resultado = await procesarImport(source, editadoPor, { confirmar });
   if (resultado.status === 'invalid') {
     return errorJson('invalid_import', 'el archivo no parsea o le faltan columnas', 422);
+  }
+  // Archivo más viejo que el último import: 409 con las dos fechas en el mensaje.
+  // El front lo reconoce por el código y ofrece "Importar igual" (reenvía confirmar=true).
+  if (resultado.status === 'stale') {
+    const dia = (d: Date) => d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    return errorJson(
+      'stale_file',
+      `Este archivo es del ${dia(resultado.archivoCreado)}, más viejo que el último import (${dia(resultado.ultimoImport)}). ¿Importar igual?`,
+      409
+    );
   }
   return NextResponse.json(resultado, { status: 200 });
 }

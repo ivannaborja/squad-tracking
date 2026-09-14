@@ -11,10 +11,16 @@ export interface FuenteMetricas {
   fetchMetricas(period: Period): MetricasSquad[];
   parseInitiatives(period: Period): ParsedInitiative[];
   warnings(): string[];
+  // Fecha de exportación del archivo (workbook.created); null si no la trae. Con
+  // ella el import detecta un re-import de una planilla más vieja que la última.
+  exportadoEn(): Date | null;
 }
 
 type ResultadoImport =
   | { status: 'invalid' }
+  // El archivo es más viejo que el último ya importado: no se escribe nada y se
+  // piden las dos fechas para que el llamador confirme antes de pisar.
+  | { status: 'stale'; archivoCreado: Date; ultimoImport: Date }
   | {
       status: 'applied';
       summary: { squads_updated: number; initiatives_upserted: number };
@@ -40,18 +46,39 @@ const fecha = (iso: string | null | undefined) => (iso ? new Date(iso) : null);
 // sin edición manual ni confirmación de conflictos. Guarda por métrica el %real y
 // las fechas del nodo; el esperado/desvío/color se derivan al leer. La frase de
 // pronóstico no se toca en el update (no va en `datos`, Prisma la deja intacta).
-export async function procesarImport(source: FuenteMetricas, editadoPor: string): Promise<ResultadoImport> {
+export async function procesarImport(
+  source: FuenteMetricas,
+  editadoPor: string,
+  // El import ignora la fecha del archivo (siempre escribe en la semana de hoy), así
+  // que un .xlsx viejo se importaría en silencio pisando datos nuevos. Con `confirmar`
+  // en false frenamos si el export es más viejo que el último ya cargado; en true el
+  // llamador ya aceptó el aviso y se escribe igual.
+  { confirmar = false }: { confirmar?: boolean } = {}
+): Promise<ResultadoImport> {
   const period = periodoDeHoy(editadoPor);
 
   let metricas: MetricasSquad[];
   let initiatives: ParsedInitiative[];
   let warnings: string[];
+  let exportadoEn: Date | null;
   try {
     metricas = source.fetchMetricas(period);
     initiatives = source.parseInitiatives(period);
     warnings = source.warnings();
+    exportadoEn = source.exportadoEn();
   } catch {
     return { status: 'invalid' };
+  }
+
+  // Guard de re-import viejo: se compara la fecha de exportación del archivo contra
+  // el máximo ya guardado. Si el archivo no trae fecha, o es el primer import, o el
+  // usuario ya confirmó, no aplica.
+  if (!confirmar && exportadoEn) {
+    const { _max } = await prisma.squadSnapshot.aggregate({ _max: { archivoCreado: true } });
+    const ultimoImport = _max.archivoCreado;
+    if (ultimoImport && exportadoEn < ultimoImport) {
+      return { status: 'stale', archivoCreado: exportadoEn, ultimoImport };
+    }
   }
 
   const semanaInicio = new Date(period.semanaInicio);
@@ -72,6 +99,9 @@ export async function procesarImport(source: FuenteMetricas, editadoPor: string)
       discoveryInicio: fecha(m.discovery?.inicio),
       discoveryFin: fecha(m.discovery?.fin),
       editadoPor,
+      // Sella la fila con la fecha del archivo que la escribió; alimenta el MAX que
+      // el guard compara en el próximo import.
+      archivoCreado: exportadoEn,
     };
     await prisma.squadSnapshot.upsert({
       where: { squadId_semanaInicio: { squadId: m.squadId, semanaInicio } },
