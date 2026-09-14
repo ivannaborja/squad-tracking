@@ -148,9 +148,9 @@ describe('SmartsheetDataSource — contrato DataSource', () => {
     const w = source.warnings();
     expect(w.some((x) => x.includes('Delta'))).toBe(true); // sin correspondencia
     expect(w.some((x) => x.includes('Gamma'))).toBe(true); // sin fila en la planilla
-    // 4 filas de portafolio (IBD200, IBD202, IBD201, TPL001); 3 importadas y la
-    // del molde omitida (su raíz no matchea un squad del sistema).
-    expect(w.some((x) => /Iniciativas de portafolio detectadas: 4 .*importadas: 3.*omitidas sin squad: 1/.test(x))).toBe(true);
+    // 4 filas con código (IBD200, IBD202, IBD201, TPL001); 3 importadas y la del
+    // molde omitida (su raíz no matchea un squad del sistema).
+    expect(w.some((x) => /Iniciativas detectadas \(con código\): 4 .*importadas: 3.*omitidas sin squad: 1/.test(x))).toBe(true);
   });
 
   it('importa sólo las filas de portafolio, identificadas por el id de fila (col V)', () => {
