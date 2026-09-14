@@ -103,6 +103,12 @@ export function normalizar(s: string): string {
     .replace(/\s+/g, ' ');
 }
 
+// Una fila es una iniciativa si su Código Ética (col A) tiene formato de código:
+// letras + números (ej. "IBD055"). Las subtareas/fases lo dejan vacío. Se usa el
+// FORMATO y no el prefijo "IBD" a propósito, para tolerar que el prefijo cambie de
+// un trimestre a otro (lo aclaró la usuaria).
+const esCodigoIniciativa = (codigo: string): boolean => /^[A-Za-z]+\d+$/.test(codigo.trim());
+
 function unwrap(v: unknown): unknown {
   if (v && typeof v === 'object' && 'result' in v) return (v as { result: unknown }).result;
   return v;
@@ -262,13 +268,15 @@ export class SmartsheetDataSource implements DataSource {
       }
     }
 
-    // Iniciativas de portafolio: las filas con Portafolio=true, a cualquier
-    // profundidad. Su squad es la raíz del árbol; su identidad, el Identificador de
-    // la fila (col V). Las que cuelgan de una raíz sin correspondencia (ej. el
-    // molde) se omiten con aviso, no se inventan.
+    // Iniciativas: las filas con Código Ética (col A), a cualquier profundidad. Una
+    // iniciativa siempre tiene código (ej. "IBD055"); las subtareas/fases no. Esto
+    // reemplaza al viejo filtro por la casilla "Portafolio", que se perdía iniciativas
+    // con código pero sin ese tilde. Su squad es la raíz del árbol; su identidad, el
+    // Identificador de la fila (col V). Las que cuelgan de una raíz sin correspondencia
+    // (ej. el molde) se omiten con aviso, no se inventan.
     const initiatives: PreInitiative[] = [];
     let omitidas = 0;
-    const deColuna = nodos.filter((n) => n.portafolio);
+    const deColuna = nodos.filter((n) => esCodigoIniciativa(n.codigo));
     for (const n of deColuna) {
       const raiz = raizDe(n, porId);
       const squadId = idPorNombre.get(normalizar(raiz.nombre));
@@ -280,7 +288,9 @@ export class SmartsheetDataSource implements DataSource {
         squadId,
         smartsheetRowId: n.id,
         codigoExterno: n.codigo || null,
-        portafolio: true,
+        // Se conserva el tilde real de Portafolio (col C) como metadato; ya no define
+        // qué se importa (eso lo decide el código).
+        portafolio: n.portafolio,
         nombre: n.nombre,
         // Discovery si cuelga de un nodo Discovery; delivery en cualquier otro caso
         // (incluida Empresas, solo-delivery, cuyas iniciativas cuelgan de Q2/Q3).
@@ -296,7 +306,7 @@ export class SmartsheetDataSource implements DataSource {
       });
     }
     avisos.push(
-      `Iniciativas de portafolio detectadas: ${deColuna.length} (importadas: ${initiatives.length}` +
+      `Iniciativas detectadas (con código): ${deColuna.length} (importadas: ${initiatives.length}` +
         (omitidas > 0 ? `, omitidas sin squad: ${omitidas}` : '') +
         ').'
     );

@@ -162,16 +162,22 @@ export async function getPortfolioTrend(): Promise<TrendPoint[]> {
 // de la iniciativa (su nodo Q en Smartsheet), no por la semana del import — así no
 // se cuelan las de Q anteriores. `extra` acota a un squad.
 async function pasesProduccion(date: string, extra: { squadId?: number }): Promise<PasesProduccion> {
+  // Se cuenta por INICIATIVA (código Ética distinto), no por fila: una misma
+  // iniciativa puede aparecer en varias filas del Smartsheet. Un pase = iniciativa
+  // del Q en curso con Etapa "Despliegue" y % Completo 100% (regla de Dai). El total
+  // son todas las iniciativas (con código) del Q.
   const enQ = {
-    portafolio: true,
     trimestre: trimestreDeFecha(date),
+    codigoExterno: { not: null },
     ...(extra.squadId !== undefined ? { squadId: extra.squadId } : {}),
   };
+  const distintos = (where: object) =>
+    prisma.initiative.findMany({ where, distinct: ['codigoExterno'], select: { codigoExterno: true } });
   const [total, hechos] = await Promise.all([
-    prisma.initiative.count({ where: enQ }),
-    prisma.initiative.count({ where: { ...enQ, etapa: 'Despliegue', pctAvance: 1, estado: 'Completo' } }),
+    distintos(enQ),
+    distintos({ ...enQ, etapa: 'Despliegue', pctAvance: 1 }),
   ]);
-  return { hechos, total };
+  return { hechos: hechos.length, total: total.length };
 }
 
 export async function getInformeGeneral(date: string): Promise<InformeGeneralView> {
