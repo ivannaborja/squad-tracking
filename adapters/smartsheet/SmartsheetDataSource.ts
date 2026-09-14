@@ -153,7 +153,10 @@ export class SmartsheetDataSource implements DataSource {
     // El árbol crudo y los squads matcheados: fetchMetricas los recorre al vuelo
     // porque el Q a extraer depende del período, no del momento del parseo.
     private readonly nodos: Nodo[],
-    private readonly arboles: SquadArbol[]
+    private readonly arboles: SquadArbol[],
+    // Cuándo Smartsheet exportó este .xlsx (workbook.created). El import lo usa para
+    // frenar un re-import de una planilla más vieja que la última ya cargada.
+    private readonly exportado: Date | null
   ) {}
 
   // Construcción asíncrona: leer el .xlsx es async, así el resto del contrato
@@ -169,6 +172,10 @@ export class SmartsheetDataSource implements DataSource {
     await wb.xlsx.load(data as unknown as Parameters<typeof wb.xlsx.load>[0]);
     const ws = wb.worksheets[0];
     if (!ws) throw new Error('el .xlsx no tiene ninguna hoja');
+
+    // Smartsheet (vía Apache POI) escribe la fecha de exportación en workbook.created.
+    // Si el archivo no la trae, queda null y el guard de "más viejo" no aplica.
+    const exportado = wb.created instanceof Date ? wb.created : null;
 
     const nodos: Nodo[] = [];
     for (let r = 2; r <= ws.rowCount; r++) {
@@ -311,7 +318,14 @@ export class SmartsheetDataSource implements DataSource {
         ').'
     );
 
-    return new SmartsheetDataSource(squads, initiatives, avisos, nodos, arboles);
+    return new SmartsheetDataSource(squads, initiatives, avisos, nodos, arboles, exportado);
+  }
+
+  // Cuándo Smartsheet generó este export (workbook.created); null si el archivo no
+  // lo trae. El import lo compara contra el último ya cargado para frenar un
+  // re-import de una planilla vieja.
+  exportadoEn(): Date | null {
+    return this.exportado;
   }
 
   async fetchSnapshot(period: Period): Promise<SquadSnapshot[]> {

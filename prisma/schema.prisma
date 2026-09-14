@@ -59,6 +59,11 @@ model SquadSnapshot {
   frasePronostico String?  @map("frase_pronostico")
   editadoPor      String   @map("editado_por")
 
+  // Timestamp de exportación del .xlsx (workbook.created, que Smartsheet setea al
+  // generar el archivo). Se usa para frenar un re-import de una planilla más vieja
+  // que la última ya importada. Nullable: filas previas al guard y el CSV no lo traen.
+  archivoCreado   DateTime? @map("archivo_creado") @db.Timestamptz(6)
+
   squad Squad @relation(fields: [squadId], references: [id])
 
   // Una sola fila por squad por semana: dentro de la semana se actualiza en el

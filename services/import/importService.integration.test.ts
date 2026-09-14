@@ -44,7 +44,13 @@ describe.skipIf(!hayDb || !optIn)('importService · integración contra Neon', (
       },
     ],
     warnings: () => [],
+    exportadoEn: () => null,
   };
+
+  // Misma fuente pero con fecha de exportación configurable, para ejercer el guard
+  // de "archivo más viejo". Fechas lejanas en el futuro para garantizar que el
+  // primer import sea el MAX global aunque haya otras filas en la tabla.
+  const sourceCon = (exportado: Date) => ({ ...source, exportadoEn: () => exportado });
 
   async function limpiar() {
     await prisma.squadSnapshot.deleteMany({ where: { squadId: SQUAD } });
@@ -80,5 +86,33 @@ describe.skipIf(!hayDb || !optIn)('importService · integración contra Neon', (
 
     const ini = await prisma.initiative.findFirst({ where: { squadId: SQUAD, codigoExterno: 'IBD900' } });
     expect(ini).not.toBeNull();
+  }, T);
+
+  it('guard: un archivo más viejo que el último import se frena (stale) y no pisa datos', async () => {
+    await limpiar();
+    const nuevo = new Date('2099-02-01T00:00:00.000Z');
+    const viejo = new Date('2099-01-01T00:00:00.000Z');
+
+    // Primer import con el archivo "nuevo": aplica y sella el snapshot.
+    const r1 = await procesarImport(sourceCon(nuevo), 'Test');
+    expect(r1.status).toBe('applied');
+
+    // Reimport del archivo "viejo" sin confirmar: se frena, devuelve las dos fechas.
+    const r2 = await procesarImport(sourceCon(viejo), 'Test');
+    expect(r2.status).toBe('stale');
+    if (r2.status === 'stale') {
+      expect(r2.archivoCreado.toISOString()).toBe(viejo.toISOString());
+      expect(r2.ultimoImport.toISOString()).toBe(nuevo.toISOString());
+    }
+
+    // El sello del snapshot sigue siendo el del archivo nuevo (no se pisó nada).
+    const snap = await prisma.squadSnapshot.findFirst({ where: { squadId: SQUAD } });
+    expect(snap.archivoCreado.toISOString()).toBe(nuevo.toISOString());
+
+    // Con confirmar: el mismo archivo viejo se escribe igual y re-sella el snapshot.
+    const r3 = await procesarImport(sourceCon(viejo), 'Test', { confirmar: true });
+    expect(r3.status).toBe('applied');
+    const snap2 = await prisma.squadSnapshot.findFirst({ where: { squadId: SQUAD } });
+    expect(snap2.archivoCreado.toISOString()).toBe(viejo.toISOString());
   }, T);
 });
