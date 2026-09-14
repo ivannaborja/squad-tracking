@@ -5,12 +5,13 @@ import type { Semaforo } from '../../domain/types';
 // (Finalizar) no tiene fechas cargadas; los deltas null sin real o sin esperado.
 export interface AHoy {
   // Esperado del trimestre (días de calendario del Q), como la bitácora de Dai.
-  // Es el que define el desvío y el color. Igual para todos los squads.
+  // Dato de contexto, igual para todos los squads; ya no define el color.
   esperadoPct: number | null;
   // Esperado del Priorizado Finalizar por sus fechas (Smartsheet %Avance Esperado):
-  // distinto por squad. Es dato informativo, no define el color.
+  // distinto por squad. Es el que define el desvío oficial y el color.
   esperadoPriorizadoPct: number | null;
-  // Desvíos del comprometido: vs el esperado del Q (el oficial) y vs el priorizado.
+  // Desvíos del comprometido: vs el esperado del Q (contexto) y vs el priorizado
+  // (el oficial, el que define el color).
   deliveryDeltaPct: number | null;
   discoveryDeltaPct: number | null;
   deliveryDeltaPriorizadoPct: number | null;
@@ -140,9 +141,9 @@ export interface SquadReportViewCompact {
   // % comprometido (avance real persistido) del squad, para mostrarlo junto al delta.
   deliveryRealPct: number | null;
   discoveryRealPct: number | null;
-  deliveryDeltaPct: number | null; // vs Q
+  deliveryDeltaPct: number | null; // vs Q (contexto)
   discoveryDeltaPct: number | null; // vs Q
-  deliveryDeltaPriorizadoPct: number | null; // vs priorizado (dato extra)
+  deliveryDeltaPriorizadoPct: number | null; // vs priorizado (el oficial, define el color)
   frasePronostico: string | null;
   datosDe: string | null;
   aHoy: AHoy;

@@ -13,6 +13,7 @@ import type { MetricaPersistida } from './types';
 // escribe Dai (InformeSemanal / InformeSquadSemanal). No persiste nada.
 
 const iso = (d: Date): string => d.toISOString().slice(0, 10);
+const isoN = (d: Date | null): string | null => (d ? iso(d) : null);
 const avg = (xs: number[]): number | null =>
   xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null;
 
@@ -24,6 +25,9 @@ export interface TrendPoint {
   discoveryPct: number | null;
   // null si no se puede derivar (falta la métrica de delivery o sus fechas).
   esperadoPct: number | null;
+  // Esperado priorizado (por las fechas del nodo Finalizar): el oficial, el que
+  // define el color. null si el squad/semana no tiene esas fechas cargadas.
+  esperadoPriorizadoPct: number | null;
 }
 
 // Un pase a producción cuenta si la iniciativa de portafolio está en Despliegue,
@@ -37,6 +41,9 @@ export interface InformeKpis {
   deliveryPromedio: number | null;
   discoveryPromedio: number | null;
   esperadoPct: number | null;
+  // Esperado priorizado (por fechas del Finalizar): el que se usa para el desvío
+  // del KPI "Avance Delivery priorizado" (el oficial, define el color).
+  esperadoPriorizadoPct: number | null;
   // Discovery de esta semana menos el de la semana anterior (pp). null si no hay
   // semana previa con dato.
   discoveryDeltaSemanaAnterior: number | null;
@@ -49,10 +56,12 @@ export interface SemaforoRow {
   squadId: number;
   squadNombre: string;
   semaforo: Semaforo | null;
-  // % comprometido (avance real) del squad + su delta vs. esperado.
+  // % comprometido (avance real) del squad + su delta vs. esperado. Delivery
+  // compara contra el priorizado (el oficial); Discovery no tiene priorizado
+  // propio, así que sigue comparando contra el Q.
   deliveryRealPct: number | null;
   discoveryRealPct: number | null;
-  deliveryDeltaPct: number | null;
+  deliveryDeltaPriorizadoPct: number | null;
   discoveryDeltaPct: number | null;
 }
 
@@ -134,17 +143,20 @@ export interface InformeSquadView {
 // medida que Dai importa cada semana (al principio 1-2 puntos, es inherente).
 export async function getPortfolioTrend(): Promise<TrendPoint[]> {
   const rows = await prisma.squadSnapshot.findMany({ orderBy: { semanaInicio: 'asc' } });
-  const porSemana = new Map<string, { del: number[]; dis: number[]; esp: number[] }>();
+  const porSemana = new Map<string, { del: number[]; dis: number[]; esp: number[]; espPrior: number[] }>();
   for (const r of rows) {
     const wk = iso(r.semanaInicio);
-    const g = porSemana.get(wk) ?? { del: [], dis: [], esp: [] };
+    const g = porSemana.get(wk) ?? { del: [], dis: [], esp: [], espPrior: [] };
     // Delivery del portafolio = el comprometido (Priorizado Finalizar) de cada squad.
     if (r.finalizarReal !== null) g.del.push(r.finalizarReal);
     if (r.discoveryReal !== null) g.dis.push(r.discoveryReal);
-    // El esperado del portafolio sigue siendo el del calendario del Q (decisión de
-    // negocio, a confirmar con Dai), no el por-fechas de cada squad.
     const fecha = iso(r.fechaReferencia);
+    // Esperado del Q: calendario del trimestre, dato de contexto.
     g.esp.push(esperadoPct(fecha, resolverTrimestre(trimestreDeFecha(fecha))));
+    // Esperado priorizado: promedio de las fechas propias del Finalizar de cada
+    // squad (el oficial); se ignora el squad/semana sin esas fechas cargadas.
+    const espPrior = esperadoDesdeFechas(fecha, isoN(r.finalizarInicio), isoN(r.finalizarFin));
+    if (espPrior !== null) g.espPrior.push(espPrior);
     porSemana.set(wk, g);
   }
   return [...porSemana.entries()]
@@ -153,6 +165,7 @@ export async function getPortfolioTrend(): Promise<TrendPoint[]> {
       deliveryPct: avg(g.del),
       discoveryPct: avg(g.dis),
       esperadoPct: avg(g.esp),
+      esperadoPriorizadoPct: avg(g.espPrior),
     }))
     .sort((a, b) => a.semanaInicio.localeCompare(b.semanaInicio));
 }
@@ -202,6 +215,7 @@ export async function getInformeGeneral(date: string): Promise<InformeGeneralVie
       deliveryPromedio: ultima?.deliveryPct ?? null,
       discoveryPromedio: ultima?.discoveryPct ?? null,
       esperadoPct: ultima?.esperadoPct ?? null,
+      esperadoPriorizadoPct: ultima?.esperadoPriorizadoPct ?? null,
       discoveryDeltaSemanaAnterior: deltaDiscovery(ultima, previa),
       pasesProduccion: pases,
       pasesPlanificados: informe?.pasesPlanificados ?? null,
@@ -212,7 +226,7 @@ export async function getInformeGeneral(date: string): Promise<InformeGeneralVie
       semaforo: s.semaforo,
       deliveryRealPct: s.deliveryRealPct,
       discoveryRealPct: s.discoveryRealPct,
-      deliveryDeltaPct: s.deliveryDeltaPct,
+      deliveryDeltaPriorizadoPct: s.deliveryDeltaPriorizadoPct,
       discoveryDeltaPct: s.discoveryDeltaPct,
     })),
     trend,
@@ -257,6 +271,7 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
     deliveryPct: h.finalizar.real,
     discoveryPct: h.discovery?.real ?? null,
     esperadoPct: esperadoPct(h.fechaReferencia, resolverTrimestre(trimestreDeFecha(h.fechaReferencia))),
+    esperadoPriorizadoPct: esperadoDesdeFechas(h.fechaReferencia, h.finalizar.inicio, h.finalizar.fin),
   }));
   const ultima = trend.at(-1) ?? null;
   const previa = trend.length >= 2 ? trend[trend.length - 2] : null;
@@ -313,6 +328,7 @@ export async function getInformeSquad(squadId: number, date: string): Promise<In
       deliveryPromedio: ultima?.deliveryPct ?? null,
       discoveryPromedio: ultima?.discoveryPct ?? null,
       esperadoPct: ultima?.esperadoPct ?? null,
+      esperadoPriorizadoPct: ultima?.esperadoPriorizadoPct ?? null,
       discoveryDeltaSemanaAnterior: deltaDiscovery(ultima, previa),
       pasesProduccion: pases,
       pasesPlanificados: informe?.pasesPlanificados ?? null,

@@ -6,10 +6,10 @@ import type { InformeKpis, MetricaVista, MetricasVista, SemaforoRow, SimpleItem,
 const brecha = (real: number | null, esperado: number | null): number | null =>
   real === null || esperado === null ? null : real - esperado;
 
-// Panel de las 4 métricas del Q por squad (vista de squad). Cada una con su %real
-// (1 decimal, como el Smartsheet), su esperado por fechas y el desvío. "Priorizado
-// Finalizar" es el comprometido que define el color; Avanzar/Discovery pueden no
-// aplicar. Es sólo lectura: la app es copia fiel del Smartsheet.
+// Resto de las métricas del Q por squad (vista de squad): Q3 total, Priorizado
+// Avanzar y Discovery, cada una con su %real (1 decimal, como el Smartsheet), su
+// esperado por fechas y el desvío. Avanzar/Discovery pueden no aplicar. Sólo
+// lectura: la app es copia fiel del Smartsheet.
 export function PanelMetricas({
   metricas,
   esperadoQ,
@@ -21,51 +21,84 @@ export function PanelMetricas({
   deliveryDeltaQ: number | null;
   discoveryDeltaQ: number | null;
 }) {
-  const items: Array<{ label: string; m: MetricaVista | null; principal?: boolean }> = [
-    { label: 'Delivery Q3 total', m: metricas.q3Total },
-    { label: 'Priorizado Finalizar', m: metricas.finalizar, principal: true },
-    { label: 'Priorizado Avanzar', m: metricas.avanzar },
-    { label: 'Discovery', m: metricas.discovery },
+  // "Priorizado Finalizar" no va acá: es el dato oficial (real + esperado + color)
+  // y ya se muestra arriba, en la card "Avance Delivery priorizado" del KpiRow.
+  // Repetirlo acá sería redundante — este bloque es sólo el resto de las métricas
+  // del Q en curso.
+  // Avanzar/Discovery sólo si el squad tiene ese nodo (m no null): "no tiene" es
+  // distinto de "lo tiene pero sin dato cargado esta semana" (eso sí se muestra,
+  // como "No aplica" dentro de la card — ver MetricaCard).
+  const opcionales: Array<{ label: string; m: MetricaVista }> = [
+    ...(metricas.avanzar ? [{ label: 'Priorizado Avanzar', m: metricas.avanzar }] : []),
+    ...(metricas.discovery ? [{ label: 'Discovery', m: metricas.discovery }] : []),
   ];
   return (
-    <>
-      {/* El esperado del Q (el que Dai reporta y define el color) va arriba, separado
-          del "por fechas" de cada nodo que se muestra en cada tarjeta. */}
-      <div style={{ fontSize: 13, color: C.gray600, marginBottom: 12 }}>
-        Esperado del Q (a hoy): <Mono style={{ fontWeight: 600, color: C.navy900 }}>{fmtPct1(esperadoQ)}</Mono>
-        {'  ·  '}Delivery vs Q <Mono style={{ color: deltaColor(deliveryDeltaQ), fontWeight: 600 }}>{fmtPp(deliveryDeltaQ)}</Mono>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+      <MetricaCard label="Delivery Q3 total" m={metricas.q3Total} />
+      <EsperadoQCard esperadoQ={esperadoQ} deliveryDeltaQ={deliveryDeltaQ} discoveryDeltaQ={discoveryDeltaQ} />
+      {opcionales.map(({ label, m }) => (
+        <MetricaCard key={label} label={label} m={m} />
+      ))}
+    </div>
+  );
+}
+
+// Una card de métrica: %real + esperado por fechas del propio nodo + desvío. "No
+// aplica" si el nodo existe pero no tiene dato cargado esta semana (hueco honesto).
+function MetricaCard({ label, m }: { label: string; m: MetricaVista }) {
+  return (
+    <Card style={{ padding: '14px 16px', border: `1px solid ${C.gray200}` }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        {label}
+      </div>
+      {m.real !== null ? (
+        <>
+          <Mono style={{ display: 'block', fontSize: 22, fontWeight: 600, color: C.navy900, marginTop: 6 }}>{fmtPct1(m.real)}</Mono>
+          <div style={{ fontSize: 12, color: C.gray600, marginTop: 4 }}>
+            Esperado por fechas {fmtPct1(m.esperado)}
+            {m.desvio !== null && (
+              <>
+                {' · '}
+                <Mono style={{ color: deltaColor(m.desvio), fontWeight: 600 }}>{fmtPp(m.desvio)}</Mono>
+              </>
+            )}
+          </div>
+        </>
+      ) : (
+        <div style={{ fontSize: 14, color: C.gray400, marginTop: 8 }}>No aplica</div>
+      )}
+    </Card>
+  );
+}
+
+// El esperado del Q (el que Dai reporta y define el color) en formato card, como
+// el resto — antes era una línea de texto suelta, más difícil de leer al lado de
+// las demás tarjetas.
+function EsperadoQCard({
+  esperadoQ,
+  deliveryDeltaQ,
+  discoveryDeltaQ,
+}: {
+  esperadoQ: number | null;
+  deliveryDeltaQ: number | null;
+  discoveryDeltaQ: number | null;
+}) {
+  return (
+    <Card style={{ padding: '14px 16px', border: `1px solid ${C.gray200}` }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+        Esperado del Q (a hoy)
+      </div>
+      <Mono style={{ display: 'block', fontSize: 22, fontWeight: 600, color: C.navy900, marginTop: 6 }}>{fmtPct1(esperadoQ)}</Mono>
+      <div style={{ fontSize: 12, color: C.gray600, marginTop: 4 }}>
+        Delivery vs Q <Mono style={{ color: deltaColor(deliveryDeltaQ), fontWeight: 600 }}>{fmtPp(deliveryDeltaQ)}</Mono>
         {discoveryDeltaQ !== null && (
           <>
-            {'  ·  '}Discovery vs Q <Mono style={{ color: deltaColor(discoveryDeltaQ), fontWeight: 600 }}>{fmtPp(discoveryDeltaQ)}</Mono>
+            <br />
+            Discovery vs Q <Mono style={{ color: deltaColor(discoveryDeltaQ), fontWeight: 600 }}>{fmtPp(discoveryDeltaQ)}</Mono>
           </>
         )}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-        {items.map(({ label, m, principal }) => (
-          <Card key={label} style={{ padding: '14px 16px', border: `1px solid ${principal ? C.navy700 : C.gray200}` }}>
-            <div style={{ fontSize: 12, fontWeight: 600, color: C.gray600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              {label}
-            </div>
-            {m && m.real !== null ? (
-              <>
-                <Mono style={{ display: 'block', fontSize: 22, fontWeight: 600, color: C.navy900, marginTop: 6 }}>{fmtPct1(m.real)}</Mono>
-                <div style={{ fontSize: 12, color: C.gray600, marginTop: 4 }}>
-                  Esperado por fechas {fmtPct1(m.esperado)}
-                  {m.desvio !== null && (
-                    <>
-                      {' · '}
-                      <Mono style={{ color: deltaColor(m.desvio), fontWeight: 600 }}>{fmtPp(m.desvio)}</Mono>
-                    </>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 14, color: C.gray400, marginTop: 8 }}>No aplica</div>
-            )}
-          </Card>
-        ))}
-      </div>
-    </>
+    </Card>
   );
 }
 
@@ -73,16 +106,28 @@ export function PanelMetricas({
 // pasesPlanificadosSlot: si se pasa, ocupa la 4ta celda (card editable inline) en
 // vez del KpiInforme estático; sin él, se mantiene el comportamiento anterior.
 export function KpiRow({ kpis, pasesPlanificadosSlot }: { kpis: InformeKpis; pasesPlanificadosSlot?: React.ReactNode }) {
-  const { deliveryPromedio, discoveryPromedio, esperadoPct, discoveryDeltaSemanaAnterior, pasesProduccion, pasesPlanificados } = kpis;
+  const {
+    deliveryPromedio,
+    discoveryPromedio,
+    esperadoPct,
+    esperadoPriorizadoPct,
+    discoveryDeltaSemanaAnterior,
+    pasesProduccion,
+    pasesPlanificados,
+  } = kpis;
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, margin: '20px 0 8px' }}>
+      {/* "Priorizado" en el nombre → compara contra el esperado priorizado (el
+          oficial), no contra el del Q (ese es el dato de "Métricas del Q" de abajo). */}
       <KpiInforme
         label="Avance Delivery priorizado"
         value={fmtPct(deliveryPromedio)}
         sub={
           <>
-            Esperado del Q {fmtPct(esperadoPct)} ·{' '}
-            <Mono style={{ color: deltaColor(brecha(deliveryPromedio, esperadoPct)) }}>{fmtPp(brecha(deliveryPromedio, esperadoPct))}</Mono>
+            Esperado priorizado {fmtPct(esperadoPriorizadoPct)} ·{' '}
+            <Mono style={{ color: deltaColor(brecha(deliveryPromedio, esperadoPriorizadoPct)) }}>
+              {fmtPp(brecha(deliveryPromedio, esperadoPriorizadoPct))}
+            </Mono>
           </>
         }
       />
@@ -160,7 +205,7 @@ export function SemaforoTabla({ rows }: { rows: SemaforoRow[] }) {
             />
             {r.squadNombre}
           </span>
-          <ComprometidoCell real={r.deliveryRealPct} delta={r.deliveryDeltaPct} />
+          <ComprometidoCell real={r.deliveryRealPct} delta={r.deliveryDeltaPriorizadoPct} />
           <ComprometidoCell real={r.discoveryRealPct} delta={r.discoveryDeltaPct} />
         </Link>
       ))}

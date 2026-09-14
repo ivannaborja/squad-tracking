@@ -18,10 +18,12 @@ import type {
 // Los valores mostrables derivados de un snapshot contra una fecha. Espejo fiel:
 // nada de esto se guarda. `delivery` = "Priorizado Finalizar" (el comprometido).
 // Hay DOS esperados:
-//  - del Q: días de calendario del trimestre (como la bitácora de Dai). Es el que
-//    define el desvío oficial y el COLOR, e igual para delivery y discovery.
 //  - priorizado: por las fechas del nodo Finalizar (Smartsheet %Avance Esperado),
-//    distinto por squad. Dato informativo del comprometido, no define el color.
+//    distinto por squad. Es el que define el desvío oficial y el COLOR (decisión
+//    de Ivanna: lo priorizado manda, no el calendario general del Q).
+//  - del Q: días de calendario del trimestre (como la bitácora de Dai), igual para
+//    delivery y discovery. Dato de contexto ("cuánto lleva el trimestre"), ya no
+//    define el color.
 export interface Derivado {
   deliveryRealPct: number | null;
   discoveryRealPct: number | null;
@@ -55,7 +57,10 @@ export function derivar(snap: PersistedSnapshot, date: string): Derivado {
     deliveryDeltaPct,
     discoveryDeltaPct,
     deliveryDeltaPriorizadoPct,
-    semaforo: deliveryDeltaPct !== null ? calcSemaforo(deliveryDeltaPct) : null,
+    // El color sale del desvío vs priorizado, no vs Q. Si el squad no tiene fechas
+    // cargadas en el Finalizar (hueco honesto), no hay con qué definirlo: color null
+    // (sin punto), no se aproxima con el del Q.
+    semaforo: deliveryDeltaPriorizadoPct !== null ? calcSemaforo(deliveryDeltaPriorizadoPct) : null,
   };
 }
 
